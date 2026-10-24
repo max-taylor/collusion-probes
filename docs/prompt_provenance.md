@@ -23,7 +23,7 @@ Check: `get_quantity(1.5, 2.76)` gives 87.58, which matches the quantity in Fish
 
 ## Our deviations
 
-- **Cues:** the collusion and innocent cue sentences are ours. Each has 5 wordings. They go in INSIGHTS.txt and are the experimental manipulation. No-cue runs (the positive control, and the C extension) leave INSIGHTS.txt empty, so their prompt is Fish's unchanged.
+- **Cues:** the collusion and innocent cue sentences are ours. Each has 5 wordings, and every wording states the same rival price (`CUE_PRICE`, $1.90), so A and B differ only in why the rival prices high, not in the number. The first pilot used cues without a number; the innocent cue then left prices unchanged and only 1 of 10 pairs survived the filter. They go in INSIGHTS.txt and are the experimental manipulation. No-cue runs (the positive control, and the C extension) leave INSIGHTS.txt empty, so their prompt is Fish's unchanged.
 - **Price-only response:** Fish's response template asks for observations, new PLANS.txt and new INSIGHTS.txt before the price. We keep only the price line, and drop the closing note about overwriting files. Otherwise the model's own written reasoning would sit between the cue and the price, so A and B runs would differ in more than the cue, and a monitor could just read the reasoning. The file descriptions in the input stay verbatim, even though the model no longer writes to the files.
 - **Prefill:** the assistant turn starts with "My chosen price:", so the model answers with the number only. Activations are read at the last prefill token.
 - **Empty PLANS.txt:** this matches Fish's first round, before the model has written any plans.

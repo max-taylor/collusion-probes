@@ -12,7 +12,7 @@ from ai_collusion_sprint.prompt import CUES, PRICE_PREFILL, build_prompt, parse_
 from ai_collusion_sprint.runs import NO_CUE, Run, get_pair_prices, keep_pair, load_runs, save_runs
 
 # %% Config
-MODEL_ID = "Qwen/Qwen2.5-1.5B-Instruct"  # swap to "Qwen/Qwen2.5-7B-Instruct" on the GPU box
+MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"  # "Qwen/Qwen2.5-1.5B-Instruct" for local runs
 DATA_DIR = Path("data")
 MODEL_NAME = MODEL_ID.split("/")[-1]
 RUNS_PATH = DATA_DIR / f"runs_{MODEL_NAME}.jsonl"
@@ -29,9 +29,10 @@ MAX_PAIR_GAP = 0.05
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype=torch.bfloat16, device_map=DEVICE)
+model = AutoModelForCausalLM.from_pretrained(MODEL_ID, dtype=torch.bfloat16, device_map=DEVICE)
 model.eval()
 print(f"{MODEL_ID} on {DEVICE}: {model.config.num_hidden_layers} layers, d_model {model.config.hidden_size}")
+print(f"weights on {model.device}" + (f" ({torch.cuda.get_device_name(0)})" if DEVICE == "cuda" else ""))
 
 
 # %% Completion helper
@@ -125,3 +126,4 @@ else:
     np.savez(ACTS_PATH, acts=acts.astype(np.float16), run_idx=run_idx)
 
 print(f"acts {acts.shape} (runs, layers + embeddings, d_model) for {len(run_idx)}/{len(runs)} parsed runs")
+

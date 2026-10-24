@@ -24,3 +24,5 @@ Fill in each value and its timestamp before generating or looking at the results
 | C price-gap test (follow minus shuffle) | TBD | |
 
 ## Change log
+
+- 2026-10-24 07:36: cues now state the rival price ($1.90, `CUE_PRICE`) in both A and B wordings. Why: in pilot 1 (7B, 10 pairs, cues without a number) the innocent cue matched no-cue prices (mean 1.66 vs 1.66) and only 1/10 pairs passed the band and gap filter. Same number in both cues keeps A and B differing only in the cause. Pilot 1 data kept as `data/pilot1_*` on the pod and excluded.

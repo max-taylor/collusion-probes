@@ -16,6 +16,7 @@ dependencies = [
 dev = [
     "ipykernel>=7.4.0",
     "ipython>=8",
+    "jupyter-server>=2.21.1",
 ]
 
 [tool.basedpyright]
