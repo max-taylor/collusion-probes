@@ -22,9 +22,11 @@ def load_runs(path: Path) -> list[Run]:
     return [Run(**json.loads(line)) for line in path.read_text().splitlines()]
 
 
-def save_runs(path: Path, runs: list[Run]) -> None:
+def append_runs(path: Path, runs: list[Run]) -> None:
+    """Append runs to the file, so an interrupted generation keeps every finished pair."""
     path.parent.mkdir(exist_ok=True)
-    _ = path.write_text("".join(json.dumps(asdict(run)) + "\n" for run in runs))
+    with path.open("a") as f:
+        _ = f.write("".join(json.dumps(asdict(run)) + "\n" for run in runs))
 
 
 def get_pair_prices(runs: list[Run]) -> dict[int, dict[str, float | None]]:
