@@ -1,4 +1,5 @@
 # %% Imports
+from functools import cache
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -29,18 +30,23 @@ N_BOOTSTRAP = 10_000  # positive-control CI resamples, pre-registered in DECISIO
 MIN_KEPT_PAIRS = 250  # stopping rule in DECISIONS.md: below this, add blocks of 400 pairs
 MIN_PARSE_RATE = 0.95  # lower means the prefill or price parser broke
 
-# %% Load model
+# %% Load model (lazily: only on first generation or activation call, so cached data needs no download)
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-model = AutoModelForCausalLM.from_pretrained(MODEL_ID, dtype=torch.bfloat16, device_map=DEVICE)
-model.eval()
-print(f"{MODEL_ID} on {DEVICE}: {model.config.num_hidden_layers} layers, d_model {model.config.hidden_size}")
-print(f"weights on {model.device}" + (f" ({torch.cuda.get_device_name(0)})" if DEVICE == "cuda" else ""))
+
+@cache
+def load_model():
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_ID, dtype=torch.bfloat16, device_map=DEVICE)
+    model.eval()
+    print(f"{MODEL_ID} on {DEVICE}: {model.config.num_hidden_layers} layers, d_model {model.config.hidden_size}")
+    print(f"weights on {model.device}" + (f" ({torch.cuda.get_device_name(0)})" if DEVICE == "cuda" else ""))
+    return tokenizer, model
 
 
 # %% Completion helper
 def tokenize_chat(prompt: str, assistant_prefix: str) -> dict[str, torch.Tensor]:
+    tokenizer, _ = load_model()
     messages = [{"role": "user", "content": prompt}]
     text = tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False) + assistant_prefix
     return tokenizer(text, return_tensors="pt", add_special_tokens=False).to(DEVICE)
@@ -48,6 +54,7 @@ def tokenize_chat(prompt: str, assistant_prefix: str) -> dict[str, torch.Tensor]
 
 def complete(prompt: str, prefill: str = "", do_sample: bool = True) -> str:
     """Generate after `prefill`; the returned completion includes it."""
+    tokenizer, model = load_model()
     inputs = tokenize_chat(prompt, prefill)
     with torch.no_grad():
         output_ids = model.generate(**inputs, max_new_tokens=MAX_NEW_TOKENS, do_sample=do_sample)  # pyright: ignore[reportAttributeAccessIssue]  # transformers stub bug
@@ -121,6 +128,7 @@ print(f"pairs kept: {len(kept_pairs)}/{len(pair_prices)} (band {PRICE_BAND}, max
 # %% Cache activations at the last prefill token, just before the price (reuses ACTS_PATH when it matches the runs)
 def get_activations(prompt: str, completion_prefix: str) -> np.ndarray:
     """Residual stream at the last token, every layer: shape (n_layers + 1, d_model)."""
+    _, model = load_model()
     inputs = tokenize_chat(prompt, completion_prefix)
     with torch.no_grad():
         hidden = model(**inputs, output_hidden_states=True).hidden_states
