@@ -49,13 +49,6 @@ def complete(prompt: str, prefill: str = "", do_sample: bool = True) -> str:
         output_ids = model.generate(**inputs, max_new_tokens=MAX_NEW_TOKENS, do_sample=do_sample)  # pyright: ignore[reportAttributeAccessIssue]  # transformers stub bug
     return prefill + tokenizer.decode(output_ids[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True)
 
-
-print(complete("Pick a price between 1 and 10. Reply with just the number.", do_sample=False))
-
-# %% Prompt preview
-print(build_prompt(make_price_history(np.random.default_rng(SEED), N_ROUNDS), CUES["collusion"][0])[-600:])
-
-
 # %% Generate dataset (resumes: pairs already in RUNS_PATH are skipped; delete it to regenerate)
 PROGRESS_EVERY = 50  # pairs between progress lines, to keep cell output short
 

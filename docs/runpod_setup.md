@@ -19,7 +19,6 @@ Model work runs on a RunPod GPU pod. Neovim and molten stay on the Mac and conne
 |---|---|---|
 | `/workspace/<repo>` (code, `data/`) | network volume | yes |
 | `/workspace/hf` (HF cache), `/workspace/.uv-cache` | network volume | yes |
-| `/workspace/.jupyter_token` | network volume | yes |
 | `/root/venv`, `~/.local/bin/uv` | pod disk | no; `scripts/start_jupyter.sh` rebuilds them in about a minute |
 
 The venv sits on the pod disk because imports from the network volume take minutes; from local disk they take seconds.
@@ -34,8 +33,8 @@ The venv sits on the pod disk because imports from the network volume take minut
    rsync -rltz --exclude .venv --exclude __pycache__ --exclude data ./ pod:/workspace/<repo>/
    ```
    Use `-rltz`, not `-a`. The network volume refuses `chown`, so `-a` fails with exit code 23.
-5. **Start Jupyter:** `ssh pod /workspace/<repo>/scripts/start_jupyter.sh`. It prints the token. The project needs `jupyter-server` and `ipykernel` in its dev deps.
-6. **Connect:** run `ssh -N -L 8888:localhost:8888 pod` on the Mac, then `:MoltenInit http://localhost:8888?token=<token>` in Neovim. `\mi` starts a local kernel instead.
+5. **Start Jupyter:** `ssh pod /workspace/<repo>/scripts/start_jupyter.sh`. It runs without a token, because the server binds to the pod's localhost and only the SSH tunnel reaches it. The project needs `jupyter-server` and `ipykernel` in its dev deps.
+6. **Connect:** run `ssh -N -L 8888:localhost:8888 pod` on the Mac, then `:MoltenInit http://localhost:8888` in Neovim. `\mi` starts a local kernel instead.
 
 Rerunning `start_jupyter.sh` restarts the server, which kills any running kernel.
 

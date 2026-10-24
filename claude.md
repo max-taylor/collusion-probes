@@ -4,7 +4,7 @@
 
 ## Editor setup (how code is run)
 
-I run this code interactively, notebook-style, in Neovim with molten-nvim. Locally I use Ghostty and tmux. For model work, local molten connects to a Jupyter server on a rented RunPod GPU box through an SSH tunnel (`:MoltenInit http://localhost:8888?token=...`). Neovim and my dotfiles stay local. The kernel runs on the pod, so imports from `src/` and files written to `data/` live on the pod; sync `src/` there after editing helpers.
+I run this code interactively, notebook-style, in Neovim with molten-nvim. Locally I use Ghostty and tmux. For model work, local molten connects to a Jupyter server on a rented RunPod GPU box through an SSH tunnel (`:MoltenInit http://localhost:8888`, no token). Neovim and my dotfiles stay local. The kernel runs on the pod, so imports from `src/` and files written to `data/` live on the pod; sync `src/` there after editing helpers.
 
 - **Cells:** `.py` files are split into cells with `# %% <title>` markers (see `src/main.py`; helpers live in `src/ai_collusion_sprint/`). Keep that structure. Each cell should run on its own, top to bottom, against shared kernel state. Don't wrap logic in `main()` or `if __name__ == "__main__"`, because that hides variables from the kernel.
 - **Kernel:** a Jupyter kernel named `ai_collusion_sprint`, which runs this project's uv `.venv`. Add deps with `uv add`. `ipykernel` is in the dev group.
