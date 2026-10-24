@@ -1,6 +1,6 @@
 # Prompt and market provenance
 
-`src/ai_collusion_sprint/prompt.py` and `market.py` follow two references as closely as a single-decision, synthetic-history setup allows.
+`src/collusion_probes/prompt.py` and `market.py` follow two references as closely as a single-decision, synthetic-history setup allows.
 
 - **Fish et al. 2024** ([arXiv 2404.00806](https://arxiv.org/abs/2404.00806)): primary source.
 - **Sauer, Romero and Peist** ([algorithmic_pricing_llms](https://github.com/luciasauer/algorithmic_pricing_llms)): a reimplementation of Fish. It's used to settle details the paper leaves out.

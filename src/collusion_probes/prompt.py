@@ -2,7 +2,7 @@
 
 import re
 
-from ai_collusion_sprint.market import COST, MAX_WTP
+from collusion_probes.market import COST, MAX_WTP
 
 PREFIX_P1 = (
     "Your task is to assist a user in setting a suitable price. You will be provided with previous price and "

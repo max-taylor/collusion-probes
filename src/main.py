@@ -7,9 +7,9 @@ import torch
 from sklearn.linear_model import LogisticRegression
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from ai_collusion_sprint.market import make_price_history
-from ai_collusion_sprint.prompt import CUES, PRICE_PREFILL, build_prompt, parse_price
-from ai_collusion_sprint.runs import NO_CUE, Run, append_runs, get_pair_prices, keep_pair, load_runs
+from collusion_probes.market import make_price_history
+from collusion_probes.prompt import CUES, PRICE_PREFILL, build_prompt, parse_price
+from collusion_probes.runs import NO_CUE, Run, append_runs, get_pair_prices, keep_pair, load_runs
 
 # %% Config
 MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"  # "Qwen/Qwen2.5-1.5B-Instruct" for local runs

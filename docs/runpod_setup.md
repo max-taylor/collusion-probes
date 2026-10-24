@@ -43,7 +43,7 @@ Rerunning `start_jupyter.sh` restarts the server, which kills any running kernel
 | You changed | What to do |
 |---|---|
 | A cell in `src/main.py` | Nothing. Molten sends the cell text to the kernel. |
-| A helper in `src/ai_collusion_sprint/` | Resync, then restart the kernel, or use `%autoreload 2`. |
+| A helper in `src/collusion_probes/` | Resync, then restart the kernel, or use `%autoreload 2`. |
 | `pyproject.toml` / `uv.lock` | Resync, rerun `start_jupyter.sh`, reconnect molten. |
 
 ## Getting results back
@@ -51,7 +51,7 @@ Rerunning `start_jupyter.sh` restarts the server, which kills any running kernel
 `data/` is gitignored and written on the pod. Pull it to the Mac with:
 
 ```bash
-rsync -rltz pod:/workspace/ai_collusion_sprint/data/ ./data/
+rsync -rltz pod:/workspace/collusion-probes/data/ ./data/
 ```
 
 File names include the model name, so 7B results don't overwrite local 1.5B ones.
