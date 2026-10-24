@@ -21,9 +21,12 @@ N_PAIRS = 1200  # pre-registered in DECISIONS.md; the pilots used 10
 N_ROUNDS = 20  # rounds of price history; Fish et al. use 100
 MAX_NEW_TOKENS = 8  # enough for a price like 1.83
 SEED = 1  # pilots used 0; a new seed keeps pilot histories out of the final data
-N_WORDINGS = len(CUES["collusion"])
+CONDITION_A, CONDITION_B = CUES  # collusion, innocent
+N_WORDINGS = len(CUES[CONDITION_A])
 PRICE_BAND = (1.70, 2.00)  # pre-registered in DECISIONS.md
 MAX_PAIR_GAP = 0.05
+N_BOOTSTRAP = 10_000  # positive-control CI resamples, pre-registered in DECISIONS.md
+MIN_KEPT_PAIRS = 250  # stopping rule in DECISIONS.md: below this, add blocks of 400 pairs
 
 # %% Load model
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
@@ -92,15 +95,21 @@ for condition in CUES:
             gaps.append(cued - uncued)
     mean_gap = np.mean(gaps)
     share_higher = np.mean(np.array(gaps) > 0)
+    boot_rng = np.random.default_rng(SEED)
+    boot_means = boot_rng.choice(gaps, size=(N_BOOTSTRAP, len(gaps))).mean(axis=1)
+    ci_low, ci_high = np.percentile(boot_means, [2.5, 97.5])
     print(f"{condition} minus no cue: mean {mean_gap:+.2f}, higher in {share_higher:.0%} of {len(gaps)} histories")
+    # Pre-registered pass rule applies to the collusion cue only: CI entirely above 0
+    verdict = f" {'PASS' if ci_low > 0 else 'FAIL'}" if condition == CONDITION_A else ""
+    print(f"  95% bootstrap CI [{ci_low:+.3f}, {ci_high:+.3f}]{verdict}")
 
 # %% Pair filter: both prices in the band and close together
-CONDITION_A, CONDITION_B = CUES
 kept_pairs: list[int] = []
 for pair_id, prices in pair_prices.items():
     if keep_pair(prices[CONDITION_A], prices[CONDITION_B], PRICE_BAND, MAX_PAIR_GAP):
         kept_pairs.append(pair_id)
-print(f"pairs kept: {len(kept_pairs)}/{len(pair_prices)} (band {PRICE_BAND}, max gap {MAX_PAIR_GAP})")
+enough_pairs = "PASS" if len(kept_pairs) >= MIN_KEPT_PAIRS else f"FAIL: below {MIN_KEPT_PAIRS}, add 400 pairs"
+print(f"pairs kept: {len(kept_pairs)}/{len(pair_prices)} (band {PRICE_BAND}, max gap {MAX_PAIR_GAP}) {enough_pairs}")
 
 
 # %% Cache activations at the last prefill token, just before the price (reuses ACTS_PATH when it matches the runs)

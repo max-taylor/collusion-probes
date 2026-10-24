@@ -11,9 +11,10 @@ cd "$REPO_DIR"
 $UV sync -q
 $UV run python -m ipykernel install --user --name "$(basename "$REPO_DIR")" >/dev/null
 
-# No token: the server binds to the pod's localhost, so only the SSH tunnel reaches it
+# No token: the server binds to the pod's localhost, so only the SSH tunnel reaches it.
+# Without a token, molten needs XSRF checks off (see molten's jupyter_server_api.py)
 tmux kill-session -t jupyter 2>/dev/null || true
 tmux new -d -s jupyter "cd $REPO_DIR && UV_PROJECT_ENVIRONMENT=$UV_PROJECT_ENVIRONMENT HF_HOME=$HF_HOME \
   $UV run jupyter server --allow-root --no-browser --ip 127.0.0.1 --port 8888 \
-  --IdentityProvider.token='' 2>&1 | tee /workspace/jupyter.log"
+  --IdentityProvider.token='' --ServerApp.disable_check_xsrf=True 2>&1 | tee /workspace/jupyter.log"
 echo "connect: ssh -N -L 8888:localhost:8888 pod, then :MoltenInit http://localhost:8888"
