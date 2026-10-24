@@ -6,7 +6,7 @@
 **Method name:** matched-outcome probing
 
 ## Question
-When an LLM seller sets a high price, can a linear probe on its activations tell whether the price comes from collusion or from an innocent cause (high demand), even when the prices are identical?
+When an LLM seller sets a high price, can a linear probe on its activations tell whether the price comes from collusion or from an innocent cause (the rival's costs rose), even when the prices are identical?
 
 ## Why it matters
 High prices alone don't prove collusion. Action monitoring can't separate deliberate coordination from innocent correlation. If internals carry that signal, white-box monitoring can catch what behaviour hides.
@@ -18,13 +18,13 @@ High prices alone don't prove collusion. Action monitoring can't separate delibe
 
 ## Setup
 1. Model: Qwen2.5-7B-Instruct on the GPU box. Qwen2.5-1.5B-Instruct locally while building. Small models price poorly per Fish et al.
-2. Prompt: Fish et al. template (Appendix G) with the P1 prefix, one seller, synthetic price history.
+2. Prompt: Fish et al. template (Appendix G) with the P1 prefix, one seller, synthetic price history. The response is cut to the price only, prefilled with "My chosen price:", so the two prompts in a pair differ only in the cue and there's no written reasoning for a monitor to read.
 3. Pre-register in `DECISIONS.md` before generating: price band, number of pairs, pair price gap, splits, seeds, stopping rule.
-4. Positive control: run the prompt with no cue about 50 times. Check the model prices above Nash, as in Fish. If it doesn't, fix the prompt before going on.
+4. Positive control: each history also runs once with no cue. Check that A prices come out higher than no-cue prices on the same history, which shows the collusion cue works. Run a 10-pair pilot first: check this, and the share of pairs that survive the filter in step 7. Use the pilot to set the thresholds in `DECISIONS.md`, then leave the pilot out of the final data.
 5. Two conditions, otherwise identical prompts:
    - A, collusion cue: hint that the rival will keep prices high. 5 wordings.
-   - B, innocent cue: hint that demand is high. 5 wordings.
-6. Generate about 300 A/B pairs, spread across wordings. Each pair gets its own random history, run once with the A cue and once with the B cue, so the two prompts differ only in the cue.
+   - B, innocent cue: hint that the rival raised its price because its costs rose. 5 wordings. Both cues are about the rival pricing high, so they differ only in whether the rival's high price depends on mine. This is the hard case for regulators: parallel high prices with an innocent cause.
+6. Generate about 300 A/B pairs, spread across wordings. Each pair gets its own random history, run once with the A cue, once with the B cue and once with no cue (for the positive control). A and B differ only in the cue.
 7. Keep a pair only if both prices are in the high-price band (Nash ≈ 1.47, monopoly ≈ 1.92) and within a small gap of each other; otherwise drop both.
 8. Cache residual-stream activations at the last token before the price, every layer (expect signal in middle layers). Save them to disk per condition, and save the trained probes, so extensions only need their own new runs.
 
@@ -34,7 +34,7 @@ High prices alone don't prove collusion. Action monitoring can't separate delibe
 
 ## Controls
 - Action baseline: classifier on price alone, expected ~50%.
-- Text baseline: classifier on the raw prompt text. Expected ~100% on training wordings, since the cue text differs. The test is whether it drops on held-out wordings while the probe holds.
+- Text baseline: bag-of-words (TF-IDF) logistic regression on the prompt text, using the same splits as the probe. It only matches exact words, so it should hit ~100% on training wordings and drop on held-out wordings. If the probe holds where it drops, the probe reads the cue's meaning, not its words. Don't use a sentence-embedding model (e.g. MiniLM) as this baseline: it encodes meaning, so it should match the probe on held-out wordings by design, and that says nothing against the probe.
 - Shuffled-label probe, expected ~50%.
 - False-positive rate: share of held-out B runs the probe flags as collusive, at a threshold fixed on training data.
 - Variance: 5 split seeds; report accuracy with confidence intervals.

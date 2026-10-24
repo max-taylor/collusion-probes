@@ -7,8 +7,9 @@ Fill in each value and its timestamp before generating or looking at the results
 | Model | TBD | |
 | High-price band for A and B | TBD | |
 | Number of A/B pairs | TBD | |
-| Cue wordings (5 per cue) | see `prompt.py` | |
-| Positive-control pass rule (no cue) | TBD | |
+| Cue wordings (5 per cue) | see `src/ai_collusion_sprint/prompt.py` | |
+| Positive-control pass rule (A minus no-cue price, same history) | TBD | |
+| Pilot size (excluded from final data) | 10 pairs | |
 | Pair price gap allowed for A vs B | TBD | |
 | Train/test split and split seeds | TBD | |
 | Probe flag threshold (for false-positive rate) | TBD | |
