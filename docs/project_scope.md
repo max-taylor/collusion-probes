@@ -2,7 +2,8 @@
 
 **Sprint:** Apart Research AI Collusion Research Sprint, Oct 23–25 2026
 **Track / question:** Track 1, Q1.3 (improving collusion detection with interpretability-based detectors)
-**Time budget:** 10–15 hours, solo or small team
+**Time budget:** about 36 hours from Oct 24 to the deadline (Sun Oct 25, 11:59 PM AoE), solo
+**Method name:** matched-outcome probing
 
 ## Question
 When an LLM seller sets a high price, can a linear probe on its activations tell whether the price comes from collusion or from an innocent cause (high demand), even when the prices are identical?
@@ -13,41 +14,52 @@ High prices alone don't prove collusion. Action monitoring can't separate delibe
 ## Novelty vs prior work
 - Fish et al. show LLM sellers reach supracompetitive prices without being told to collude, driven partly by price-war fear. Behavioural analysis only, no internals.
 - Rose et al. show linear probes detect collusion, but only for explicitly instructed collusion in committee-style tasks. Transfer to emergent collusion was weak, and they don't study pricing.
-- This project: single pricing agent, matched-outcome design (same price, different cause), plus a steering test on Fish's price-war mechanism.
+- This project: single pricing agent, matched-outcome design (same price, different cause), tested on cue wordings the probe never saw.
 
 ## Setup
-1. Model: Qwen 7–8B instruct (e.g. Qwen2.5-7B or Qwen3-8B). Optional 1.5B sanity check first. Small models price poorly per Fish et al.
+1. Model: Qwen2.5-7B-Instruct on the GPU box. Qwen2.5-1.5B-Instruct locally while building. Small models price poorly per Fish et al.
 2. Prompt: Fish et al. template (Appendix G) with the P1 prefix, one seller, synthetic price history.
-3. Two conditions, otherwise identical prompts:
-   - Collusion cue: hint that the rival will keep prices high.
-   - Innocent cue: hint that demand is high.
-4. Generate a few hundred single pricing decisions per condition.
-5. Keep only runs in the same high-price band in both conditions (normalised Nash ≈ 1.47, monopoly ≈ 1.92).
-6. Cache residual-stream activations at the last token before the price, every layer (expect signal in middle layers).
-7. Standardise activations; train a logistic-regression probe per layer to predict the condition (train/test split).
+3. Pre-register in `DECISIONS.md` before generating: price band, number of pairs, pair price gap, splits, seeds, stopping rule.
+4. Positive control: run the prompt with no cue about 50 times. Check the model prices above Nash, as in Fish. If it doesn't, fix the prompt before going on.
+5. Two conditions, otherwise identical prompts:
+   - A, collusion cue: hint that the rival will keep prices high. 5 wordings.
+   - B, innocent cue: hint that demand is high. 5 wordings.
+6. Generate about 300 A/B pairs, spread across wordings. Each pair gets its own random history, run once with the A cue and once with the B cue, so the two prompts differ only in the cue.
+7. Keep a pair only if both prices are in the high-price band (Nash ≈ 1.47, monopoly ≈ 1.92) and within a small gap of each other; otherwise drop both.
+8. Cache residual-stream activations at the last token before the price, every layer (expect signal in middle layers). Save them to disk per condition, and save the trained probes, so extensions only need their own new runs.
+
+## Core tests
+1. Main probe: standardise activations and train a logistic-regression probe per layer on A (label 1) vs B (label 0). Split train/test by pair, so both members of a pair land on the same side.
+2. Leave-one-wording-out: train on 4 wordings, test on the 5th, and rotate so each wording is held out once. This shows the probe isn't memorising cue words.
 
 ## Controls
 - Action baseline: classifier on price alone, expected ~50%.
-- Text baseline: classifier on the raw prompt text, to show the probe isn't just reading cue wording.
+- Text baseline: classifier on the raw prompt text. Expected ~100% on training wordings, since the cue text differs. The test is whether it drops on held-out wordings while the probe holds.
 - Shuffled-label probe, expected ~50%.
+- False-positive rate: share of held-out B runs the probe flags as collusive, at a threshold fixed on training data.
+- Variance: 5 split seeds; report accuracy with confidence intervals.
 
-## Extensions (in order)
-1. Generalisation (near-core): train on one cue wording, test on reworded cues.
-2. Steering on emergent mechanism: find a "price-war fear" direction (contrast activations with and without Fish's price-war-avoidance notes), then add or remove it and measure the price change.
-3. Optional: repeat on a second model family (Llama, Gemma).
+## Extensions (in order, only once the core is done)
+1. Uncued collusion (condition C). No cue; the history shows a rival that copies the model's previous price (C-follow). Each C-follow run has a twin with the same rival prices in random order (C-shuffle), so only the following pattern differs. Measure the price gap in each pair (C-follow minus C-shuffle), then score both twins with the saved A vs B probe. Check whether C-follow scores higher, and whether the score gap tracks the price gap. To rule out price leaking into the score, compare C-follow runs with B runs at the same price. This tests Rose et al.'s open problem: does a probe trained on instructed collusion catch collusion nobody asked for?
+2. Price-war-fear probe: build a direction by contrasting activations with and without Fish's price-war-avoidance notes in PLANS.txt. Compare it with the A vs B probe direction. If extension 1 is done, test whether it predicts the C price gap.
+3. Optional: repeat on Qwen2.5-1.5B as a smaller-model replication.
+4. Optional: repeat on a second model family (Llama, Gemma).
 
 ## Stack
-Python in Neovim (`# %%` cells sent to an IPython REPL via iron.nvim or vim-slime). Hugging Face transformers, TransformerLens (or nnsight), scikit-learn, matplotlib. GPU: cheap rented GPU (Modal or RunPod) for 7–8B; local is fine for 1.5B.
+Python in Neovim (`# %%` cells run through molten-nvim). Hugging Face transformers, TransformerLens (or nnsight), scikit-learn, matplotlib. GPU: cheap rented GPU (Modal or RunPod) for 7–8B; local is fine for 1.5B.
 
 ## Deliverables
-- Key chart: probe accuracy by layer vs the 50% line and the baselines.
-- 4–8 page report on the official template, including the required limitations and dual-use appendix.
+- Key chart: probe accuracy by layer vs the 50% line and the baselines, on training and held-out wordings.
+- If extension 1 is done: probe scores for C-follow and C-shuffle against A and B.
+- 4–8 page report on the official template, including the required limitations and dual-use appendix and an LLM Usage Statement.
+- `DECISIONS.md` (pre-registered choices) and `PRIOR_WORK.md` (reused code and sources).
 - Public repo on GitHub, write-up on personal site.
 
 ## Risks and fallbacks
 - Model doesn't price high under both cues: strengthen cues, or widen the high-price band.
-- Probe only detects wording: lean on the generalisation test and report honestly.
-- Instructed cues may not reflect emergent collusion (Rose et al.'s main limitation): address via the steering extension and state it in limitations.
+- Probe only detects wording: the leave-one-wording-out test shows it; report honestly.
+- Anchoring: the model may just continue the price history. Each A/B pair shares one history, so this cancels.
+- Instructed cues may not reflect emergent collusion (Rose et al.'s main limitation): state it in limitations; extension 1 tests it directly.
 - Negative result: still publishable with clean controls.
 
 ## Key references
