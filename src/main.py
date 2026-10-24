@@ -27,6 +27,7 @@ PRICE_BAND = (1.70, 2.00)  # pre-registered in DECISIONS.md
 MAX_PAIR_GAP = 0.05
 N_BOOTSTRAP = 10_000  # positive-control CI resamples, pre-registered in DECISIONS.md
 MIN_KEPT_PAIRS = 250  # stopping rule in DECISIONS.md: below this, add blocks of 400 pairs
+MIN_PARSE_RATE = 0.95  # lower means the prefill or price parser broke
 
 # %% Load model
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
@@ -83,8 +84,13 @@ for condition in [*CUES, NO_CUE]:
     condition_runs = [run for run in runs if run.condition == condition]
     prices = [run.price for run in condition_runs if run.price is not None]
     print(f"{condition}: {len(prices)}/{len(condition_runs)} parsed, mean price {np.mean(prices):.2f}")
+    assert len(prices) >= MIN_PARSE_RATE * len(condition_runs), f"{condition}: parse rate below {MIN_PARSE_RATE:.0%}"
 
 pair_prices = get_pair_prices(runs)
+assert len(runs) == len(pair_prices) * (len(CUES) + 1), "a pair is missing a run or has a duplicate"
+assert all(set(prices) == {*CUES, NO_CUE} for prices in pair_prices.values()), "a pair is missing a condition"
+pair_histories: dict[int, list[dict[str, float]]] = {}
+assert all(pair_histories.setdefault(run.pair_id, run.history) == run.history for run in runs), "runs in a pair differ in history"
 
 # %% Positive control: does each cue move the price compared with no cue on the same history?
 for condition in CUES:
@@ -131,4 +137,7 @@ else:  # missing, or stale because RUNS_PATH changed since the cache was written
     np.savez(ACTS_PATH, acts=acts.astype(np.float16), run_idx=run_idx)
 
 print(f"acts {acts.shape} (runs, layers + embeddings, d_model) for {len(run_idx)}/{len(runs)} parsed runs")
+kept_set = set(kept_pairs)
+kept_ab_idx = {i for i, run in enumerate(runs) if run.pair_id in kept_set and run.condition != NO_CUE}
+assert kept_ab_idx <= set(run_idx.tolist()), "a kept A/B run has no cached activations"
 
