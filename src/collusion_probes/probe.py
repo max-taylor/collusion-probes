@@ -15,6 +15,12 @@ def make_probe() -> Pipeline:
     return make_pipeline(StandardScaler(), LogisticRegression(C=PROBE_C, max_iter=MAX_ITER))
 
 
+def pick_headline_layer(cv_acc: np.ndarray) -> int:
+    """Layer with the best CV accuracy; ties go to the middle tied layer (DECISIONS.md change log)."""
+    tied_layers = np.flatnonzero(np.isclose(cv_acc, cv_acc.max()))
+    return int(tied_layers[len(tied_layers) // 2])
+
+
 def get_bootstrap_ci(values: list[float] | np.ndarray, n_resamples: int, seed: int) -> tuple[float, float]:
     """95% percentile bootstrap CI of the mean, resampling values (one per pair) with replacement."""
     rng = np.random.default_rng(seed)

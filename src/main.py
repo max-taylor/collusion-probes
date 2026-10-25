@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from IPython.core.getipython import get_ipython
+from joblib import Parallel, delayed
 from scipy import stats
 from sklearn.model_selection import GroupKFold, GroupShuffleSplit, cross_val_score
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -19,7 +20,7 @@ if ipython is not None:
     _ = ipython.run_line_magic("autoreload", "2")
 
 from collusion_probes.market import make_follow_history, make_price_history, shuffle_rival_prices, swap_roles
-from collusion_probes.probe import get_bootstrap_ci, get_pair_accuracy_ci, make_probe, make_text_baseline
+from collusion_probes.probe import get_bootstrap_ci, get_pair_accuracy_ci, make_probe, make_text_baseline, pick_headline_layer
 from collusion_probes.prompt import CUES, PRICE_PREFILL, build_prompt, parse_price
 from collusion_probes.runs import NO_CUE, Run, append_runs, get_pair_prices, keep_pair, load_runs
 
@@ -206,8 +207,7 @@ def get_split_accuracy_ci(correct: np.ndarray, keep: np.ndarray | None = None) -
 
 # %% Main probe results: headline layer, accuracy and false-positive rate
 cv_mean = cv_acc.mean(axis=0)
-tied_layers = np.flatnonzero(np.isclose(cv_mean, cv_mean.max()))
-headline_layer = int(tied_layers[len(tied_layers) // 2])  # CV only picks it; ties go to the middle tied layer
+headline_layer = pick_headline_layer(cv_mean)  # CV only picks it; ties go to the middle tied layer
 test_ci = np.array([get_split_accuracy_ci(test_correct[:, :, layer]) for layer in range(n_layers)])
 mean, low, high = test_ci[headline_layer]
 print(f"{len(probe_runs)} runs from {len(kept_set)} pairs, {len(SPLIT_SEEDS)} split seeds, pair-bootstrap CIs")
@@ -240,6 +240,29 @@ mean, low, high = get_pair_accuracy_ci(lowo_correct[is_b, headline_layer], probe
 print(f"false-positive rate on held-out-wording B: {1 - mean:.1%} [{1 - high:.1%}, {1 - low:.1%}]")
 
 
+# %% Nested layer choice (post-hoc, DECISIONS.md): each outer split / held-out wording picks its own layer without its test data
+split_layers = [pick_headline_layer(cv_acc[seed_i]) for seed_i in range(len(SPLIT_SEEDS))]
+nested_correct = np.stack([test_correct[seed_i, :, layer] for seed_i, layer in enumerate(split_layers)])
+mean, low, high = get_split_accuracy_ci(nested_correct)
+print(f"nested test: layers {split_layers}, {mean:.1%} [{low:.1%}, {high:.1%}]")
+
+# Inner CV leaves one of the 4 training wordings out, so the layer is chosen for carrying over to new wordings
+fold_layers: list[int] = []
+nested_lowo_correct = np.zeros(len(probe_runs))
+for wording in range(N_WORDINGS):
+    train, test = np.flatnonzero(probe_wordings != wording), probe_wordings == wording
+    inner_acc = np.array([
+        cross_val_score(
+            make_probe(), probe_acts[train, layer], probe_labels[train], groups=probe_wordings[train], cv=GroupKFold(N_WORDINGS - 1), n_jobs=-1
+        ).mean()
+        for layer in range(n_layers)
+    ])
+    fold_layers.append(pick_headline_layer(inner_acc))
+    nested_lowo_correct[test] = lowo_correct[test, fold_layers[-1]]
+mean, low, high = get_pair_accuracy_ci(nested_lowo_correct, probe_pairs, N_BOOTSTRAP, SEED)
+print(f"nested held-out wording: layers {fold_layers}, {mean:.1%} [{low:.1%}, {high:.1%}]")
+
+
 # %% Baselines on the same splits: TF-IDF on the prompt, price alone, and the probe with shuffled labels
 text_correct = np.full((len(SPLIT_SEEDS), len(probe_runs)), np.nan)
 price_correct = np.full((len(SPLIT_SEEDS), len(probe_runs)), np.nan)
@@ -269,6 +292,25 @@ for name, (mean, low, high) in [
 ]:
     print(f"{name}: {mean:.1%} [{low:.1%}, {high:.1%}]")
 print("TF-IDF per held-out wording: " + ", ".join(f"{text_lowo_correct[probe_wordings == w].mean():.0%}" for w in range(N_WORDINGS)))
+
+
+# %% Shuffled-label null distribution (post-hoc, DECISIONS.md): many permutations, not one, at the headline layer
+N_PERMUTATIONS = 100
+
+
+def get_shuffled_accuracy(permutation: int) -> float:
+    labels = np.random.default_rng([SEED, permutation]).permutation(probe_labels)
+    correct = np.full((len(SPLIT_SEEDS), len(probe_runs)), np.nan)
+    for seed_i, (train, test) in enumerate(splits):
+        correct[seed_i, test] = make_probe().fit(X[train], labels[train]).predict(X[test]) == probe_labels[test]
+    return get_split_accuracy_ci(correct)[0]
+
+
+null_acc = np.array(Parallel(n_jobs=-1)(delayed(get_shuffled_accuracy)(p) for p in range(N_PERMUTATIONS)))
+observed = get_split_accuracy_ci(shuffled_correct)[0]
+null_low, null_high = np.percentile(null_acc, [2.5, 97.5])
+print(f"shuffled-label null, {N_PERMUTATIONS} permutations: mean {null_acc.mean():.1%}, 95% range [{null_low:.1%}, {null_high:.1%}]")
+print(f"  single shuffle {observed:.1%} sits at percentile {(null_acc < observed).mean():.0%}; real probe {test_ci[headline_layer, 0]:.1%}")
 
 
 # %% Key chart: probe accuracy by layer against chance and the baselines (saved for the report)
@@ -392,6 +434,36 @@ _ = plt.boxplot(list(groups.values()), tick_labels=list(groups))
 _ = plt.ylabel(f"probe logit, layer {c_layer}")
 plt.tight_layout()
 plt.savefig(DATA_DIR / f"c_scores_{MODEL_NAME}.png", dpi=200)
+plt.show()
+
+# %% C score gaps at every layer (post-hoc, DECISIONS.md), as a share of that layer's A minus B gap so layers compare
+c_index = {(run.pair_id, run.condition): i for i, run in enumerate(c_runs)}
+c_row_of_run = {i: row for row, i in enumerate(c_run_idx.tolist())}
+twin_rows = {name: [c_row_of_run[c_index[pid, name]] for pid in both_ids] for name in (C_FOLLOW, *C_CONTROLS)}
+c_layers = range(1, n_layers)  # layer 0 is the embedding of the same last token in every run, so its probe is degenerate
+layer_gaps = np.zeros((len(C_CONTROLS), n_layers, 3))  # (control, layer, mean / CI low / CI high)
+for layer in c_layers:
+    probe = saved["probes"][layer]
+    layer_score = {name: probe.decision_function(c_acts[rows, layer].astype(np.float32)) for name, rows in twin_rows.items()}
+    oos_layer = probe.decision_function(acts[oos_rows, layer].astype(np.float32))
+    ab_gap = oos_layer[oos_conditions == CONDITION_A].mean() - oos_layer[oos_conditions == CONDITION_B].mean()
+    for k, control in enumerate(C_CONTROLS):
+        gaps = (layer_score[C_FOLLOW] - layer_score[control]) / ab_gap
+        layer_gaps[k, layer] = (gaps.mean(), *get_bootstrap_ci(gaps, N_BOOTSTRAP, C_SEED))
+
+_ = plt.figure(figsize=(6, 2.5))
+for k, (control, color) in enumerate(zip(C_CONTROLS, ["tab:purple", "tab:brown"])):
+    passing = [layer for layer in c_layers if layer_gaps[k, layer, 1] > 0]
+    print(f"follow - {control}: CI above 0 at {len(passing)}/{len(c_layers)} layers; headline layer {layer_gaps[k, c_layer, 0]:+.1%} of A-B gap")
+    _ = plt.plot(c_layers, layer_gaps[k, 1:, 0], label=f"C-follow minus C-{control}", color=color)
+    _ = plt.fill_between(c_layers, layer_gaps[k, 1:, 1], layer_gaps[k, 1:, 2], alpha=0.25, color=color)
+_ = plt.axhline(0, color="grey", linestyle="--")
+_ = plt.axvline(c_layer, color="black", linewidth=0.8)
+_ = plt.xlabel("layer")
+_ = plt.ylabel("score gap / A-B gap")
+_ = plt.legend(fontsize=7)
+plt.tight_layout()
+plt.savefig(DATA_DIR / f"c_layers_{MODEL_NAME}.png", dpi=200)
 plt.show()
 
 
