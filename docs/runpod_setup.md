@@ -6,7 +6,7 @@ Model work runs on a RunPod GPU pod. Neovim and molten stay on the Mac and conne
 
 | Item | Value |
 |---|---|
-| Pod | 7B runs: `ai-collusion-sprint-2` (`bhms915dvcztr5`), 1× RTX PRO 4500 (32 GB), $0.72/hr. 14B replication: `ai-collusion-sprint-14b` (`uxe0a15dpwiehr`), 1× RTX PRO 6000 (96 GB), $2.49/hr, terminated 2026-10-25 after the run. Both Secure Cloud, EU-RO-1. |
+| Pod | 7B runs: `ai-collusion-sprint-2` (`bhms915dvcztr5`), 1× RTX PRO 4500 (32 GB), $0.72/hr. 14B replication: `ai-collusion-sprint-14b` (`uxe0a15dpwiehr`), 1× RTX PRO 6000 (96 GB), $2.49/hr, terminated 2026-10-25 after the run. Llama-3.1-8B replication: `ai-collusion-sprint-llama` (`x24qqg97hv9fih`), 1× RTX PRO 4500, $0.72/hr, created 2026-10-25 because the stopped 7B pods' hosts had no free GPU. Both Secure Cloud, EU-RO-1. |
 | Image | `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404` (template `runpod-torch-v280`) |
 | CUDA floor | 13.0, because the locked torch uses the CUDA 13 runtime |
 | Network volume | `ai-collusion-sprint` (`bs1ne1ykdh`), 80 GB (grown from 50 GB on 2026-10-25 for 14B weights), EU-RO-1, mounted at `/workspace` |
