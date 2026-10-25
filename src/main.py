@@ -341,7 +341,10 @@ oos_rows = [row for row, i in enumerate(run_idx.tolist()) if runs[i].pair_id not
 oos_scores = c_probe.decision_function(acts[oos_rows, c_layer].astype(np.float32))
 oos_conditions = np.array([runs[run_idx[row]].condition for row in oos_rows])
 oos_prices = np.array([runs[run_idx[row]].price for row in oos_rows])
-print(f"layer {c_layer}: scored {len(c_score)} C runs and {len(oos_rows)} out-of-sample A/B runs")
+# Post-hoc uncued reference: no-cue runs never trained the probe, so every one is out of sample
+no_cue_rows = [row for row, i in enumerate(run_idx.tolist()) if runs[i].condition == NO_CUE]
+no_cue_scores = c_probe.decision_function(acts[no_cue_rows, c_layer].astype(np.float32))
+print(f"layer {c_layer}: scored {len(c_score)} C runs, {len(oos_rows)} out-of-sample A/B runs and {len(no_cue_rows)} no-cue runs")
 
 # %% Extension 1 results: pre-registered tests (DECISIONS.md)
 twin_score: dict[int, dict[str, float]] = {}
@@ -374,10 +377,13 @@ if matched:
     print(f"price-matched: C-follow {follow_matched.mean():.3f} vs B {b_matched.mean():.3f} ({len(matched)} C-follow runs matched)")
 else:
     print(f"price-matched: no out-of-sample B run within {PRICE_MATCH} of any C-follow price")
+low, high = get_bootstrap_ci(no_cue_scores, N_BOOTSTRAP, C_SEED)
+print(f"no-cue A/B histories (post-hoc): mean logit {no_cue_scores.mean():+.3f} [{low:+.3f}, {high:+.3f}]")
 
 groups = {
     "A (oos)": oos_scores[oos_conditions == CONDITION_A],
     "B (oos)": oos_b_scores,
+    "no cue": no_cue_scores,
     "C-follow": [twin_score[pid][C_FOLLOW] for pid in both_ids],
     **{f"C-{control}": [twin_score[pid][control] for pid in both_ids] for control in C_CONTROLS},
 }

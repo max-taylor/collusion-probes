@@ -17,3 +17,7 @@ I run this code interactively, notebook-style, in Neovim with molten-nvim. Local
 ## Experiment changes
 
 Any change to the experimental design (cues, prompt, price band, pair filter, split, thresholds, model) gets a dated entry under `## Change log` at the bottom of `DECISIONS.md`: what changed, why, and the data behind it. Never edit a logged value in its table; add a change-log line instead. Rename superseded data on the pod (e.g. `data/pilot1_*`) rather than deleting it.
+
+## Findings
+
+Results and their meaning go in `FINDINGS.md` as they come in: one dated entry per result, with the numbers, what they mean and the chart path. Don't leave interpretation only in chat.
