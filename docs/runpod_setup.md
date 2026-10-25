@@ -6,11 +6,10 @@ Model work runs on a RunPod GPU pod. Neovim and molten stay on the Mac and conne
 
 | Item | Value |
 |---|---|
-| Pod | `ai-collusion-sprint-2` (`bhms915dvcztr5`), Secure Cloud, EU-RO-1. Replaced `cbq9enm8fe41pd` on 2026-10-25, when its host had no free GPU. |
-| GPU | 1× RTX PRO 4500 Blackwell (32 GB), $0.72/hr while running |
+| Pod | 7B runs: `ai-collusion-sprint-2` (`bhms915dvcztr5`), 1× RTX PRO 4500 (32 GB), $0.72/hr. 14B replication: `ai-collusion-sprint-14b` (`uxe0a15dpwiehr`), 1× RTX PRO 6000 (96 GB), $2.49/hr. Both Secure Cloud, EU-RO-1. |
 | Image | `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404` (template `runpod-torch-v280`) |
 | CUDA floor | 13.0, because the locked torch uses the CUDA 13 runtime |
-| Network volume | `ai-collusion-sprint` (`bs1ne1ykdh`), 50 GB, EU-RO-1, mounted at `/workspace` |
+| Network volume | `ai-collusion-sprint` (`bs1ne1ykdh`), 80 GB (grown from 50 GB on 2026-10-25 for 14B weights), EU-RO-1, mounted at `/workspace` |
 | Ports | `22/tcp` only. Jupyter is reached through the tunnel, not a public proxy URL. |
 
 ## Where things live on the pod

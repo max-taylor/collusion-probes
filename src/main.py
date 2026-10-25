@@ -24,7 +24,7 @@ from collusion_probes.prompt import CUES, PRICE_PREFILL, build_prompt, parse_pri
 from collusion_probes.runs import NO_CUE, Run, append_runs, get_pair_prices, keep_pair, load_runs
 
 # %% Config
-MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"  # "Qwen/Qwen2.5-1.5B-Instruct" for local runs
+MODEL_ID = "Qwen/Qwen2.5-14B-Instruct"  # "Qwen/Qwen2.5-1.5B-Instruct" for local runs
 DATA_DIR = Path("data")
 MODEL_NAME = MODEL_ID.split("/")[-1]
 RUNS_PATH = DATA_DIR / f"runs_{MODEL_NAME}.jsonl"
@@ -387,5 +387,8 @@ _ = plt.ylabel(f"probe logit, layer {c_layer}")
 plt.tight_layout()
 plt.savefig(DATA_DIR / f"c_scores_{MODEL_NAME}.png", dpi=200)
 plt.show()
+
+
+
 
 
