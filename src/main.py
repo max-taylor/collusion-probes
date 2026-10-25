@@ -19,7 +19,7 @@ if ipython is not None:
     _ = ipython.run_line_magic("autoreload", "2")
 
 from collusion_probes.market import make_follow_history, make_price_history, shuffle_rival_prices, swap_roles
-from collusion_probes.probe import get_bootstrap_ci, get_mean_ci, make_probe, make_text_baseline
+from collusion_probes.probe import get_bootstrap_ci, get_pair_accuracy_ci, make_probe, make_text_baseline
 from collusion_probes.prompt import CUES, PRICE_PREFILL, build_prompt, parse_price
 from collusion_probes.runs import NO_CUE, Run, append_runs, get_pair_prices, keep_pair, load_runs
 
@@ -178,42 +178,43 @@ probe_labels = np.array([runs[i].condition == CONDITION_A for i in probe_runs], 
 probe_pairs = np.array([runs[i].pair_id for i in probe_runs])
 probe_wordings = np.array([runs[i].wording for i in probe_runs])
 probe_prompts = np.array([runs[i].prompt for i in probe_runs])
+probe_prices = np.array([[runs[i].price] for i in probe_runs])
 n_layers = probe_acts.shape[1]
+splits = [
+    next(GroupShuffleSplit(n_splits=1, test_size=TEST_SIZE, random_state=seed).split(probe_acts, groups=probe_pairs))
+    for seed in SPLIT_SEEDS
+]
+assert all(not set(probe_pairs[train]) & set(probe_pairs[test]) for train, test in splits), "a pair is on both sides"
 
 cv_acc = np.zeros((len(SPLIT_SEEDS), n_layers))  # 5-fold CV inside the training split
-test_acc = np.zeros((len(SPLIT_SEEDS), n_layers))
-for seed_i, split_seed in enumerate(SPLIT_SEEDS):
-    splitter = GroupShuffleSplit(n_splits=1, test_size=TEST_SIZE, random_state=split_seed)
-    train, test = next(splitter.split(probe_acts, probe_labels, groups=probe_pairs))
-    assert not set(probe_pairs[train]) & set(probe_pairs[test]), "a pair is on both sides of the split"
+test_correct = np.full((len(SPLIT_SEEDS), len(probe_runs), n_layers), np.nan)  # NaN where the run is in training
+for seed_i, (train, test) in enumerate(splits):
     for layer in range(n_layers):
         X = probe_acts[:, layer]
         cv_scores = cross_val_score(
             make_probe(), X[train], probe_labels[train], groups=probe_pairs[train], cv=GroupKFold(N_CV_FOLDS), n_jobs=-1
         )
         cv_acc[seed_i, layer] = cv_scores.mean()
-        test_acc[seed_i, layer] = make_probe().fit(X[train], probe_labels[train]).score(X[test], probe_labels[test])
+        test_correct[seed_i, test, layer] = make_probe().fit(X[train], probe_labels[train]).predict(X[test]) == probe_labels[test]
 
 
-# %% Main probe results: headline layer and accuracy by layer
+def get_split_accuracy_ci(correct: np.ndarray, keep: np.ndarray | None = None) -> tuple[float, float, float]:
+    """Pair-bootstrap accuracy over every seed's test runs; correct is (seeds, runs), NaN for training runs."""
+    tested = ~np.isnan(correct) & (True if keep is None else keep)
+    return get_pair_accuracy_ci(correct[tested], np.broadcast_to(probe_pairs, correct.shape)[tested], N_BOOTSTRAP, SEED)
+
+
+# %% Main probe results: headline layer, accuracy and false-positive rate
 cv_mean = cv_acc.mean(axis=0)
 tied_layers = np.flatnonzero(np.isclose(cv_mean, cv_mean.max()))
 headline_layer = int(tied_layers[len(tied_layers) // 2])  # CV only picks it; ties go to the middle tied layer
-mean, low, high = get_mean_ci(test_acc[:, headline_layer])
-print(f"{len(probe_runs)} runs from {len(kept_set)} pairs, {len(SPLIT_SEEDS)} split seeds")
-print(f"headline layer {headline_layer} (CV {cv_acc[:, headline_layer].mean():.0%}): test {mean:.0%} [{low:.0%}, {high:.0%}]")
-
-test_ci = np.array([get_mean_ci(test_acc[:, layer]) for layer in range(n_layers)])
-_ = plt.figure(figsize=(6, 2.5))
-_ = plt.plot(test_ci[:, 0], label="probe (test)")
-_ = plt.fill_between(range(n_layers), test_ci[:, 1], test_ci[:, 2], alpha=0.3)
-_ = plt.axhline(0.5, color="grey", linestyle="--", label="chance")
-_ = plt.axvline(headline_layer, color="black", linewidth=0.8)
-_ = plt.xlabel("layer (0 = embeddings)")
-_ = plt.ylabel("accuracy")
-_ = plt.legend(fontsize=8)
-plt.tight_layout()
-plt.show()
+test_ci = np.array([get_split_accuracy_ci(test_correct[:, :, layer]) for layer in range(n_layers)])
+mean, low, high = test_ci[headline_layer]
+print(f"{len(probe_runs)} runs from {len(kept_set)} pairs, {len(SPLIT_SEEDS)} split seeds, pair-bootstrap CIs")
+print(f"headline layer {headline_layer} (CV {cv_mean[headline_layer]:.0%}): test {mean:.1%} [{low:.1%}, {high:.1%}]")
+# False-positive rate: held-out B runs flagged collusive at the pre-registered p > 0.5 (predict's threshold)
+mean, low, high = get_split_accuracy_ci(test_correct[:, :, headline_layer], keep=probe_labels == 0)
+print(f"false-positive rate on held-out B: {1 - mean:.1%} [{1 - high:.1%}, {1 - low:.1%}]")
 
 # %% Save probes: one per layer, fit on every kept pair, for scoring new runs (extensions)
 probes = [make_probe().fit(probe_acts[:, layer], probe_labels) for layer in range(n_layers)]
@@ -223,45 +224,67 @@ print(f"saved {len(probes)} probes to {PROBES_PATH}")
 
 
 # %% Leave-one-wording-out: train on 4 cue wordings, test on the 5th, every layer (takes a few minutes)
-lowo_acc = np.zeros((N_WORDINGS, n_layers))
+lowo_correct = np.zeros((len(probe_runs), n_layers))  # every run is tested once, when its wording is held out
 for wording in range(N_WORDINGS):
     train, test = np.flatnonzero(probe_wordings != wording), np.flatnonzero(probe_wordings == wording)
     for layer in range(n_layers):
         X = probe_acts[:, layer]
-        lowo_acc[wording, layer] = make_probe().fit(X[train], probe_labels[train]).score(X[test], probe_labels[test])
+        lowo_correct[test, layer] = make_probe().fit(X[train], probe_labels[train]).predict(X[test]) == probe_labels[test]
 
-mean, low, high = get_mean_ci(lowo_acc[:, headline_layer])
-per_wording = ", ".join(f"{acc:.0%}" for acc in lowo_acc[:, headline_layer])
-print(f"held-out wording, layer {headline_layer}: {mean:.0%} [{low:.0%}, {high:.0%}] (per wording: {per_wording})")
+lowo_ci = np.array([get_pair_accuracy_ci(lowo_correct[:, layer], probe_pairs, N_BOOTSTRAP, SEED) for layer in range(n_layers)])
+mean, low, high = lowo_ci[headline_layer]
+per_wording = ", ".join(f"{lowo_correct[probe_wordings == w, headline_layer].mean():.0%}" for w in range(N_WORDINGS))
+print(f"held-out wording, layer {headline_layer}: {mean:.1%} [{low:.1%}, {high:.1%}] (per wording: {per_wording})")
+is_b = probe_labels == 0
+mean, low, high = get_pair_accuracy_ci(lowo_correct[is_b, headline_layer], probe_pairs[is_b], N_BOOTSTRAP, SEED)
+print(f"false-positive rate on held-out-wording B: {1 - mean:.1%} [{1 - high:.1%}, {1 - low:.1%}]")
 
 
-# %% Text baseline: TF-IDF logistic regression on the prompt, same splits as the probe
-text_split_acc = np.zeros(len(SPLIT_SEEDS))
-for seed_i, split_seed in enumerate(SPLIT_SEEDS):
-    splitter = GroupShuffleSplit(n_splits=1, test_size=TEST_SIZE, random_state=split_seed)
-    train, test = next(splitter.split(probe_prompts, probe_labels, groups=probe_pairs))
-    text_split_acc[seed_i] = make_text_baseline().fit(probe_prompts[train], probe_labels[train]).score(probe_prompts[test], probe_labels[test])
+# %% Baselines on the same splits: TF-IDF on the prompt, price alone, and the probe with shuffled labels
+text_correct = np.full((len(SPLIT_SEEDS), len(probe_runs)), np.nan)
+price_correct = np.full((len(SPLIT_SEEDS), len(probe_runs)), np.nan)
+shuffled_correct = np.full((len(SPLIT_SEEDS), len(probe_runs)), np.nan)
+shuffled_labels = np.random.default_rng(SEED).permutation(probe_labels)
+X = probe_acts[:, headline_layer]
+for seed_i, (train, test) in enumerate(splits):
+    model = make_text_baseline().fit(probe_prompts[train], probe_labels[train])
+    text_correct[seed_i, test] = model.predict(probe_prompts[test]) == probe_labels[test]
+    price_correct[seed_i, test] = make_probe().fit(probe_prices[train], probe_labels[train]).predict(probe_prices[test]) == probe_labels[test]
+    shuffled_correct[seed_i, test] = make_probe().fit(X[train], shuffled_labels[train]).predict(X[test]) == probe_labels[test]
 
-text_lowo_acc = np.zeros(N_WORDINGS)
+text_lowo_correct = np.zeros(len(probe_runs))
 for wording in range(N_WORDINGS):
     train, test = np.flatnonzero(probe_wordings != wording), np.flatnonzero(probe_wordings == wording)
-    text_lowo_acc[wording] = make_text_baseline().fit(probe_prompts[train], probe_labels[train]).score(probe_prompts[test], probe_labels[test])
+    model = make_text_baseline().fit(probe_prompts[train], probe_labels[train])
+    text_lowo_correct[test] = model.predict(probe_prompts[test]) == probe_labels[test]
 
-for name, accs in [("seen wordings", text_split_acc), ("held-out wording", text_lowo_acc)]:
-    mean, low, high = get_mean_ci(accs)
-    print(f"TF-IDF, {name}: {mean:.0%} [{low:.0%}, {high:.0%}]")
-print("TF-IDF per held-out wording: " + ", ".join(f"{acc:.0%}" for acc in text_lowo_acc))
+text_ci = get_split_accuracy_ci(text_correct)
+text_lowo_ci = get_pair_accuracy_ci(text_lowo_correct, probe_pairs, N_BOOTSTRAP, SEED)
+price_ci = get_split_accuracy_ci(price_correct)
+for name, (mean, low, high) in [
+    ("TF-IDF, seen wordings", text_ci),
+    ("TF-IDF, held-out wording", text_lowo_ci),
+    ("price only", price_ci),
+    (f"shuffled-label probe, layer {headline_layer}", get_split_accuracy_ci(shuffled_correct)),
+]:
+    print(f"{name}: {mean:.1%} [{low:.1%}, {high:.1%}]")
+print("TF-IDF per held-out wording: " + ", ".join(f"{text_lowo_correct[probe_wordings == w].mean():.0%}" for w in range(N_WORDINGS)))
 
-lowo_ci = np.array([get_mean_ci(lowo_acc[:, layer]) for layer in range(n_layers)])
-_ = plt.figure(figsize=(6, 2.5))
-_ = plt.plot(lowo_ci[:, 0], label="probe (held-out wording)")
-_ = plt.fill_between(range(n_layers), lowo_ci[:, 1], lowo_ci[:, 2], alpha=0.3)
-_ = plt.axhline(text_lowo_acc.mean(), color="tab:orange", label="TF-IDF (held-out wording)")
+
+# %% Key chart: probe accuracy by layer against chance and the baselines (saved for the report)
+_ = plt.figure(figsize=(6, 2.8))
+for ci, label, color in [(test_ci, "probe, seen wordings", "tab:blue"), (lowo_ci, "probe, held-out wording", "tab:green")]:
+    _ = plt.plot(ci[:, 0], label=label, color=color)
+    _ = plt.fill_between(range(n_layers), ci[:, 1], ci[:, 2], alpha=0.25, color=color)
+_ = plt.axhline(text_lowo_ci[0], color="tab:orange", label="TF-IDF, held-out wording")
+_ = plt.axhline(price_ci[0], color="tab:red", linestyle=":", label="price only")
 _ = plt.axhline(0.5, color="grey", linestyle="--", label="chance")
+_ = plt.axvline(headline_layer, color="black", linewidth=0.8)
 _ = plt.xlabel("layer (0 = embeddings)")
 _ = plt.ylabel("accuracy")
-_ = plt.legend(fontsize=8)
+_ = plt.legend(fontsize=7, loc="lower right")
 plt.tight_layout()
+plt.savefig(DATA_DIR / f"key_chart_{MODEL_NAME}.png", dpi=200)
 plt.show()
 
 # %% Extension 1 config: uncued collusion, C-follow vs C-shuffle and C-lead twins (pre-registered in DECISIONS.md)
@@ -362,4 +385,7 @@ _ = plt.figure(figsize=(6, 2.5))
 _ = plt.boxplot(list(groups.values()), tick_labels=list(groups))
 _ = plt.ylabel(f"probe logit, layer {c_layer}")
 plt.tight_layout()
+plt.savefig(DATA_DIR / f"c_scores_{MODEL_NAME}.png", dpi=200)
 plt.show()
+
+

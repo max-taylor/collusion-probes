@@ -1,7 +1,6 @@
 """Linear probes on cached activations: one per layer, collusion (label 1) vs innocent (label 0)."""
 
 import numpy as np
-from scipy import stats
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline, make_pipeline
@@ -16,19 +15,22 @@ def make_probe() -> Pipeline:
     return make_pipeline(StandardScaler(), LogisticRegression(C=PROBE_C, max_iter=MAX_ITER))
 
 
-def get_mean_ci(values: np.ndarray, confidence: float = 0.95) -> tuple[float, float, float]:
-    """Mean and t-distribution confidence interval, e.g. of accuracy across split seeds."""
-    mean = float(np.mean(values))
-    half_width = float(stats.sem(values) * stats.t.ppf((1 + confidence) / 2, len(values) - 1))
-    return mean, mean - half_width, mean + half_width
-
-
 def get_bootstrap_ci(values: list[float] | np.ndarray, n_resamples: int, seed: int) -> tuple[float, float]:
     """95% percentile bootstrap CI of the mean, resampling values (one per pair) with replacement."""
     rng = np.random.default_rng(seed)
     boot_means = rng.choice(values, size=(n_resamples, len(values))).mean(axis=1)
     low, high = np.percentile(boot_means, [2.5, 97.5])
     return float(low), float(high)
+
+
+def get_pair_accuracy_ci(
+    correct: np.ndarray, pairs: np.ndarray, n_resamples: int, seed: int
+) -> tuple[float, float, float]:
+    """Accuracy with a 95% CI that resamples pairs, not runs: a pair's runs (and its repeats across split seeds) are one unit."""
+    _, pair_of_run = np.unique(pairs, return_inverse=True)
+    pair_acc = np.bincount(pair_of_run, weights=correct) / np.bincount(pair_of_run)
+    low, high = get_bootstrap_ci(pair_acc, n_resamples, seed)
+    return float(pair_acc.mean()), low, high
 
 
 def make_text_baseline() -> Pipeline:
