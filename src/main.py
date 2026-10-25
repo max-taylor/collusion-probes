@@ -1,14 +1,23 @@
 # %% Imports
+import pickle
 from functools import cache
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from sklearn.linear_model import LogisticRegression
+from IPython.core.getipython import get_ipython
+from sklearn.model_selection import GroupKFold, GroupShuffleSplit, cross_val_score
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+# Re-import edited helpers in src/collusion_probes/ on every cell run, without a kernel restart
+ipython = get_ipython()
+if ipython is not None:
+    _ = ipython.run_line_magic("load_ext", "autoreload")
+    _ = ipython.run_line_magic("autoreload", "2")
+
 from collusion_probes.market import make_price_history
+from collusion_probes.probe import get_mean_ci, make_probe, make_text_baseline
 from collusion_probes.prompt import CUES, PRICE_PREFILL, build_prompt, parse_price
 from collusion_probes.runs import NO_CUE, Run, append_runs, get_pair_prices, keep_pair, load_runs
 
@@ -18,6 +27,7 @@ DATA_DIR = Path("data")
 MODEL_NAME = MODEL_ID.split("/")[-1]
 RUNS_PATH = DATA_DIR / f"runs_{MODEL_NAME}.jsonl"
 ACTS_PATH = DATA_DIR / f"acts_{MODEL_NAME}.npz"
+PROBES_PATH = DATA_DIR / f"probes_{MODEL_NAME}.pkl"
 N_PAIRS = 1200  # pre-registered in DECISIONS.md; the pilots used 10
 N_ROUNDS = 20  # rounds of price history; Fish et al. use 100
 MAX_NEW_TOKENS = 8  # enough for a price like 1.83
@@ -29,6 +39,9 @@ MAX_PAIR_GAP = 0.05
 N_BOOTSTRAP = 10_000  # positive-control CI resamples, pre-registered in DECISIONS.md
 MIN_KEPT_PAIRS = 250  # stopping rule in DECISIONS.md: below this, add blocks of 400 pairs
 MIN_PARSE_RATE = 0.95  # lower means the prefill or price parser broke
+SPLIT_SEEDS = range(5)  # probe train/test splits, pre-registered in DECISIONS.md
+TEST_SIZE = 0.2
+N_CV_FOLDS = 5  # CV inside the training split picks the headline layer
 
 # %% Load model (lazily: only on first generation or activation call, so cached data needs no download)
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
@@ -149,3 +162,97 @@ kept_set = set(kept_pairs)
 kept_ab_idx = {i for i, run in enumerate(runs) if run.pair_id in kept_set and run.condition != NO_CUE}
 assert kept_ab_idx <= set(run_idx.tolist()), "a kept A/B run has no cached activations"
 
+
+# %% Main probe: per layer, collusion (1) vs innocent (0) on kept pairs, split by pair (takes a few minutes)
+row_of_run = {run_i: row for row, run_i in enumerate(run_idx.tolist())}
+probe_runs = [i for i, run in enumerate(runs) if run.pair_id in kept_set and run.condition != NO_CUE]
+probe_acts = acts[[row_of_run[i] for i in probe_runs]].astype(np.float32)  # (runs, layers + embeddings, d_model)
+probe_labels = np.array([runs[i].condition == CONDITION_A for i in probe_runs], dtype=int)
+probe_pairs = np.array([runs[i].pair_id for i in probe_runs])
+probe_wordings = np.array([runs[i].wording for i in probe_runs])
+probe_prompts = np.array([runs[i].prompt for i in probe_runs])
+n_layers = probe_acts.shape[1]
+
+cv_acc = np.zeros((len(SPLIT_SEEDS), n_layers))  # 5-fold CV inside the training split
+test_acc = np.zeros((len(SPLIT_SEEDS), n_layers))
+for seed_i, split_seed in enumerate(SPLIT_SEEDS):
+    splitter = GroupShuffleSplit(n_splits=1, test_size=TEST_SIZE, random_state=split_seed)
+    train, test = next(splitter.split(probe_acts, probe_labels, groups=probe_pairs))
+    assert not set(probe_pairs[train]) & set(probe_pairs[test]), "a pair is on both sides of the split"
+    for layer in range(n_layers):
+        X = probe_acts[:, layer]
+        cv_scores = cross_val_score(
+            make_probe(), X[train], probe_labels[train], groups=probe_pairs[train], cv=GroupKFold(N_CV_FOLDS), n_jobs=-1
+        )
+        cv_acc[seed_i, layer] = cv_scores.mean()
+        test_acc[seed_i, layer] = make_probe().fit(X[train], probe_labels[train]).score(X[test], probe_labels[test])
+
+
+# %% Main probe results: headline layer and accuracy by layer
+cv_mean = cv_acc.mean(axis=0)
+tied_layers = np.flatnonzero(np.isclose(cv_mean, cv_mean.max()))
+headline_layer = int(tied_layers[len(tied_layers) // 2])  # CV only picks it; ties go to the middle tied layer
+mean, low, high = get_mean_ci(test_acc[:, headline_layer])
+print(f"{len(probe_runs)} runs from {len(kept_set)} pairs, {len(SPLIT_SEEDS)} split seeds")
+print(f"headline layer {headline_layer} (CV {cv_acc[:, headline_layer].mean():.0%}): test {mean:.0%} [{low:.0%}, {high:.0%}]")
+
+test_ci = np.array([get_mean_ci(test_acc[:, layer]) for layer in range(n_layers)])
+_ = plt.figure(figsize=(6, 2.5))
+_ = plt.plot(test_ci[:, 0], label="probe (test)")
+_ = plt.fill_between(range(n_layers), test_ci[:, 1], test_ci[:, 2], alpha=0.3)
+_ = plt.axhline(0.5, color="grey", linestyle="--", label="chance")
+_ = plt.axvline(headline_layer, color="black", linewidth=0.8)
+_ = plt.xlabel("layer (0 = embeddings)")
+_ = plt.ylabel("accuracy")
+_ = plt.legend(fontsize=8)
+plt.tight_layout()
+plt.show()
+
+# %% Save probes: one per layer, fit on every kept pair, for scoring new runs (extensions)
+probes = [make_probe().fit(probe_acts[:, layer], probe_labels) for layer in range(n_layers)]
+with PROBES_PATH.open("wb") as f:
+    pickle.dump({"probes": probes, "headline_layer": headline_layer}, f)
+print(f"saved {len(probes)} probes to {PROBES_PATH}")
+
+
+# %% Leave-one-wording-out: train on 4 cue wordings, test on the 5th, every layer (takes a few minutes)
+lowo_acc = np.zeros((N_WORDINGS, n_layers))
+for wording in range(N_WORDINGS):
+    train, test = np.flatnonzero(probe_wordings != wording), np.flatnonzero(probe_wordings == wording)
+    for layer in range(n_layers):
+        X = probe_acts[:, layer]
+        lowo_acc[wording, layer] = make_probe().fit(X[train], probe_labels[train]).score(X[test], probe_labels[test])
+
+mean, low, high = get_mean_ci(lowo_acc[:, headline_layer])
+per_wording = ", ".join(f"{acc:.0%}" for acc in lowo_acc[:, headline_layer])
+print(f"held-out wording, layer {headline_layer}: {mean:.0%} [{low:.0%}, {high:.0%}] (per wording: {per_wording})")
+
+
+# %% Text baseline: TF-IDF logistic regression on the prompt, same splits as the probe
+text_split_acc = np.zeros(len(SPLIT_SEEDS))
+for seed_i, split_seed in enumerate(SPLIT_SEEDS):
+    splitter = GroupShuffleSplit(n_splits=1, test_size=TEST_SIZE, random_state=split_seed)
+    train, test = next(splitter.split(probe_prompts, probe_labels, groups=probe_pairs))
+    text_split_acc[seed_i] = make_text_baseline().fit(probe_prompts[train], probe_labels[train]).score(probe_prompts[test], probe_labels[test])
+
+text_lowo_acc = np.zeros(N_WORDINGS)
+for wording in range(N_WORDINGS):
+    train, test = np.flatnonzero(probe_wordings != wording), np.flatnonzero(probe_wordings == wording)
+    text_lowo_acc[wording] = make_text_baseline().fit(probe_prompts[train], probe_labels[train]).score(probe_prompts[test], probe_labels[test])
+
+for name, accs in [("seen wordings", text_split_acc), ("held-out wording", text_lowo_acc)]:
+    mean, low, high = get_mean_ci(accs)
+    print(f"TF-IDF, {name}: {mean:.0%} [{low:.0%}, {high:.0%}]")
+print("TF-IDF per held-out wording: " + ", ".join(f"{acc:.0%}" for acc in text_lowo_acc))
+
+lowo_ci = np.array([get_mean_ci(lowo_acc[:, layer]) for layer in range(n_layers)])
+_ = plt.figure(figsize=(6, 2.5))
+_ = plt.plot(lowo_ci[:, 0], label="probe (held-out wording)")
+_ = plt.fill_between(range(n_layers), lowo_ci[:, 1], lowo_ci[:, 2], alpha=0.3)
+_ = plt.axhline(text_lowo_acc.mean(), color="tab:orange", label="TF-IDF (held-out wording)")
+_ = plt.axhline(0.5, color="grey", linestyle="--", label="chance")
+_ = plt.xlabel("layer (0 = embeddings)")
+_ = plt.ylabel("accuracy")
+_ = plt.legend(fontsize=8)
+plt.tight_layout()
+plt.show()

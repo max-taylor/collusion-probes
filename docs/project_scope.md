@@ -26,18 +26,18 @@ High prices alone don't prove collusion. Action monitoring can't separate delibe
    - B, innocent cue: hint that the rival raised its price because its costs rose. 5 wordings. Both cues are about the rival pricing high, so they differ only in whether the rival's high price depends on mine. This is the hard case for regulators: parallel high prices with an innocent cause.
 6. [x] Generate about 300 A/B pairs, spread across wordings. Each pair gets its own random history, run once with the A cue, once with the B cue and once with no cue (for the positive control). A and B differ only in the cue.
 7. [x] Keep a pair only if both prices are in the high-price band (Nash ≈ 1.47, monopoly ≈ 1.92) and within a small gap of each other; otherwise drop both.
-8. [x] Cache residual-stream activations at the last token before the price, every layer (expect signal in middle layers). Save them to disk per condition, and save the trained probes, so extensions only need their own new runs. _(Probes get saved once core test 1 trains them.)_
+8. [x] Cache residual-stream activations at the last token before the price, every layer (expect signal in middle layers). Save them to disk per condition, and save the trained probes, so extensions only need their own new runs.
 
 ## Core tests
-1. [ ] Main probe: standardise activations and train a logistic-regression probe per layer on A (label 1) vs B (label 0). Split train/test by pair, so both members of a pair land on the same side.
-2. [ ] Leave-one-wording-out: train on 4 wordings, test on the 5th, and rotate so each wording is held out once. This shows the probe isn't memorising cue words.
+1. [x] Main probe: standardise activations and train a logistic-regression probe per layer on A (label 1) vs B (label 0). Split train/test by pair, so both members of a pair land on the same side.
+2. [x] Leave-one-wording-out: train on 4 wordings, test on the 5th, and rotate so each wording is held out once. This shows the probe isn't memorising cue words.
 
 ## Controls
 - [ ] Action baseline: classifier on price alone, expected ~50%.
-- [ ] Text baseline: bag-of-words (TF-IDF) logistic regression on the prompt text, using the same splits as the probe. It only matches exact words, so it should hit ~100% on training wordings and drop on held-out wordings. If the probe holds where it drops, the probe reads the cue's meaning, not its words. Don't use a sentence-embedding model (e.g. MiniLM) as this baseline: it encodes meaning, so it should match the probe on held-out wordings by design, and that says nothing against the probe.
+- [x] Text baseline: bag-of-words (TF-IDF) logistic regression on the prompt text, using the same splits as the probe. It only matches exact words, so it should hit ~100% on training wordings and drop on held-out wordings. If the probe holds where it drops, the probe reads the cue's meaning, not its words. Don't use a sentence-embedding model (e.g. MiniLM) as this baseline: it encodes meaning, so it should match the probe on held-out wordings by design, and that says nothing against the probe.
 - [ ] Shuffled-label probe, expected ~50%.
 - [ ] False-positive rate: share of held-out B runs the probe flags as collusive, at a threshold fixed on training data.
-- [ ] Variance: 5 split seeds; report accuracy with confidence intervals.
+- [x] Variance: 5 split seeds; report accuracy with confidence intervals.
 
 ## Extensions (in order, only once the core is done)
 1. [ ] Uncued collusion (condition C). No cue; the history shows a rival that copies the model's previous price (C-follow). Each C-follow run has a twin with the same rival prices in random order (C-shuffle), so only the following pattern differs. Measure the price gap in each pair (C-follow minus C-shuffle), then score both twins with the saved A vs B probe. Check whether C-follow scores higher, and whether the score gap tracks the price gap. To rule out price leaking into the score, compare C-follow runs with B runs at the same price. This tests Rose et al.'s open problem: does a probe trained on instructed collusion catch collusion nobody asked for?
