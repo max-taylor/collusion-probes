@@ -38,7 +38,7 @@ Probe score = the headline probe's logit. Positive leans collusion (A), negative
 
 ## Robustness checks after review (both models, post-hoc, DECISIONS.md 06:30)
 
-- 2026-10-25: **Layer choice didn't inflate anything.** Picking the layer inside each split or fold gives 7B: 100.0% [100.0, 100.0] seen, 98.7% [97.8, 99.6] held out (layers 15–23). 14B: 99.7% [99.2, 100.0] seen, 99.6% [99.0, 100.0] held out (layers 27–42). Headline numbers were 100 / 97.6 (7B) and 100 / 99.0 (14B).
+- 2026-10-25: **Layer choice didn't inflate anything.** Picking the layer inside each split or fold gives 7B: 100.0% [100.0, 100.0] seen, 98.7% [97.8, 99.6] held out (layers 15–23). 14B: 99.7% [99.2, 100.0] seen, 99.6% [99.0, 100.0] held out (layers 27–42). Headline numbers were 100 / 97.6 (7B) and 100 / 99.0 (14B). In the report: lead with the pre-registered headline-layer numbers, and cite the nested ones as evidence that layer choice didn't inflate them.
 - 2026-10-25: **Shuffled-label control is noise.** Over 100 permutations the null averages 49.7% (7B) and 49.8% (14B), with 95% of shuffles in [43.6, 56.7] and [43.6, 55.3]. The single shuffles reported (53.5%, 54.2%) sit at the 84th and 88th percentiles. Drop the CI-based reading.
 - 2026-10-25: **C gaps across layers.** Follow minus shuffle is above 0 at 17/28 layers (7B) and 27/48 (14B); at the headline layer it's 15% and 21% of the A–B gap. Follow minus lead is above 0 at 13/28 layers (7B, 8% at headline) but only 4/48 (14B, 2%). So the 14B follow-vs-lead pass depends on the layer; the 7B one is broader. Charts: `data/c_layers_Qwen2.5-7B-Instruct.png`, `data/c_layers_Qwen2.5-14B-Instruct.png`.
 

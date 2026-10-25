@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>collusion-probes Findings Guide</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Mirrors cell_guide.html: sidebar beside a main column; each question is a band with the answer left, numbers and chart right. */
+:root {
+  --bg: #f4f6f8; --surface: #ffffff; --fg: #18202c; --muted: #5a6575; --line: #dce2e9;
+  --accent: #0d676c; --accent-soft: #e0eeee; --code-bg: #eef2f6;
+  --pass: #2f7d32; --pass-soft: #e3f1e3; --weak: #a3620a; --weak-soft: #f8ecd9; --bad: #b3261e; --bad-soft: #f8e1df;
+  --col-a: #b3261e; --col-b: #1d5fb8; --col-none: #737d8c; --col-c: #0d676c;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10141a; --surface: #171c24; --fg: #dce3ed; --muted: #94a0b1; --line: #29303b;
+    --accent: #5cc2bd; --accent-soft: #163032; --code-bg: #1b212b;
+    --pass: #8fd18f; --pass-soft: #1a2e1c; --weak: #f0b45e; --weak-soft: #33270f; --bad: #f28b82; --bad-soft: #3a1c1a;
+    --col-a: #f28b82; --col-b: #7fb2f5; --col-none: #94a0b1; --col-c: #5cc2bd;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10141a; --surface: #171c24; --fg: #dce3ed; --muted: #94a0b1; --line: #29303b;
+  --accent: #5cc2bd; --accent-soft: #163032; --code-bg: #1b212b;
+  --pass: #8fd18f; --pass-soft: #1a2e1c; --weak: #f0b45e; --weak-soft: #33270f; --bad: #f28b82; --bad-soft: #3a1c1a;
+  --col-a: #f28b82; --col-b: #7fb2f5; --col-none: #94a0b1; --col-c: #5cc2bd;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+}
+h1, h2, h3, h4 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: 2rem; font-weight: 600; }
+h2 { font-size: 1.6rem; font-weight: 600; }
+h3 { font-size: 1.25rem; font-weight: 600; }
+h4 { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; }
+p { margin: 0; max-width: 70ch; }
+ul { margin: 0; padding-left: 1.2em; max-width: 70ch; }
+li + li { margin-top: 4px; }
+code { font-family: var(--font-mono); font-size: 0.86em; }
+a { color: var(--accent); }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.04em; }
+.muted { color: var(--muted); }
+
+.layout { max-width: 1480px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 32px; }
+@media (max-width: 960px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.sidebar { position: sticky; top: 16px; align-self: start; max-height: calc(100vh - 32px); overflow-y: auto; }
+@media (max-width: 960px) { .sidebar { position: static; max-height: none; } }
+.sidebar details > summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 1rem; padding: 4px 0 10px; }
+.sidebar ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.sidebar a { display: flex; gap: 8px; align-items: baseline; color: var(--fg); text-decoration: none; font-size: 0.9rem; padding: 4px 8px; border-radius: 4px; }
+.sidebar a span { font-family: var(--font-mono); font-size: 0.74rem; min-width: 1.6em; color: var(--accent); }
+.sidebar a:hover { background: var(--accent-soft); }
+.sidebar .sep { margin-top: 10px; }
+
+main { display: flex; flex-direction: column; gap: 40px; min-width: 0; }
+.intro { display: flex; flex-direction: column; gap: 10px; }
+.intro > p { color: var(--muted); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.headline p { font-size: 1.02rem; color: var(--fg); }
+
+.verdicts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; max-width: none; }
+.verdicts li + li { margin-top: 0; }
+.verdicts a { display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px; text-decoration: none; color: var(--fg); }
+.verdicts a:hover { border-color: var(--accent); }
+.verdicts span { color: var(--muted); font-size: 0.86rem; }
+
+.chip { align-self: flex-start; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.04em; padding: 1px 8px; border-radius: 4px; white-space: nowrap; }
+.chip.pass { color: var(--pass); background: var(--pass-soft); }
+.chip.weak { color: var(--weak); background: var(--weak-soft); }
+.chip.bad { color: var(--bad); background: var(--bad-soft); }
+
+.scale-scroll { overflow-x: auto; }
+.scale { display: block; width: 100%; min-width: 640px; height: auto; font-family: var(--font-mono); font-size: 11px; }
+.scale .axis { stroke: var(--line); stroke-width: 2; }
+.scale .tick { stroke: var(--line); }
+.scale .tick-l { fill: var(--muted); font-size: 10px; }
+.scale .zero { stroke: var(--muted); stroke-dasharray: 4 3; }
+.scale .row-l { fill: var(--fg); font-family: var(--font-display); font-weight: 600; font-size: 13px; }
+.scale .lead { stroke: var(--line); }
+.scale .a { fill: var(--col-a); } .scale .b { fill: var(--col-b); } .scale .n { fill: var(--col-none); } .scale .c { fill: var(--col-c); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.86rem; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+.q { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; scroll-margin-top: 16px; min-width: 0; }
+.q-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 12px 18px; border-bottom: 1px solid var(--line); }
+.q-no { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent); background: var(--accent-soft); padding: 1px 8px; border-radius: 4px; }
+.cells { margin-left: auto; font-family: var(--font-mono); font-size: 0.76rem; color: var(--muted); }
+.q-body { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+@media (max-width: 1180px) { .q-body { grid-template-columns: minmax(0, 1fr); } }
+.explain, .evidence { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.evidence { background: var(--code-bg); border-left: 1px solid var(--line); border-radius: 0 0 6px 0; }
+@media (max-width: 1180px) { .evidence { border-left: 0; border-top: 1px solid var(--line); border-radius: 0 0 6px 6px; } }
+.answer { font-weight: 500; }
+
+.cmp-wrap { overflow-x: auto; }
+table.cmp { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+.cmp th { text-align: left; font-family: var(--font-display); font-weight: 600; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); }
+.cmp td { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.cmp td:not(:first-child) { font-family: var(--font-mono); font-size: 0.8rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cmp td small { display: block; color: var(--muted); font-size: 0.72rem; }
+
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.charts figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.charts img { width: 100%; background: #ffffff; border: 1px solid var(--line); border-radius: 4px; }
+.charts figcaption { font-size: 0.8rem; color: var(--muted); font-family: var(--font-mono); }
+
+details.more summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+details.more[open] summary { margin-bottom: 8px; }
+
+dl.gloss { display: grid; grid-template-columns: minmax(120px, 200px) minmax(0, 1fr); gap: 8px 16px; margin: 0; }
+@media (max-width: 600px) { dl.gloss { grid-template-columns: minmax(0, 1fr); } }
+dl.gloss dt { font-family: var(--font-mono); font-size: 0.84rem; color: var(--accent); }
+dl.gloss dd { margin: 0; max-width: 70ch; }
+@media (max-width: 600px) { dl.gloss dd { margin-bottom: 8px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar" aria-label="Contents">
+    <details open><summary>Contents</summary>
+      <ol>
+        <li><a href="#overview"><span>·</span>Overview</a></li>
+        <li><a href="#scale"><span>·</span>The score scale</a></li>
+        <li class="sep"><a href="#q1"><span>Q1</span>Does the cue raise prices?</a></li>
+        <li><a href="#q2"><span>Q2</span>A vs B at one price</a></li>
+        <li><a href="#q3"><span>Q3</span>Words or meaning?</a></li>
+        <li><a href="#q4"><span>Q4</span>Are the controls clean?</a></li>
+        <li><a href="#q5"><span>Q5</span>Uncued collusion</a></li>
+        <li class="sep"><a href="#corrected"><span>·</span>What got corrected</a></li>
+        <li><a href="#limits"><span>·</span>Limitations</a></li>
+        <li><a href="#glossary"><span>·</span>Glossary</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <main>
+    <section class="intro" id="overview">
+      <span class="eyebrow">FINDINGS.md, by question</span>
+      <h1>What the results say</h1>
+      <p>This page rearranges <code>FINDINGS.md</code> by question instead of by date. It has no new numbers, and <code>FINDINGS.md</code> stays the source of truth. Square brackets are 95% pair-bootstrap CIs. Cell links go to <a href="cell_guide.html">cell_guide.html</a>.</p>
+      <div class="panel headline">
+        <h4>Headline</h4>
+        <p>A linear probe tells instructed collusion cues (A) from innocent cost-shock cues (B) at the same price, on both 7B and 14B. It holds on wordings it never saw, where a bag-of-words baseline drops to 82–85%.</p>
+        <p>It doesn't cleanly catch collusion that nobody asked for. Histories where prices line up score higher than shuffled ones. But it barely cares who copies whom, and no uncued run gets near the decision boundary.</p>
+      </div>
+      <ul class="verdicts">
+        <li><a href="#q1"><span class="chip pass">PASS · weak on 14B</span><strong>Does the collusion cue raise prices?</strong><span>A prices about 0.07–0.08 above no cue.</span></a></li>
+        <li><a href="#q2"><span class="chip pass">PASS</span><strong>Can the probe tell A from B at one price?</strong><span>100% on test, 0% false positives.</span></a></li>
+        <li><a href="#q3"><span class="chip pass">PASS · with a caveat</span><strong>Words or meaning?</strong><span>98–99% on unseen wordings vs 82–85% for TF-IDF.</span></a></li>
+        <li><a href="#q4"><span class="chip pass">CLEAN</span><strong>Are the controls clean?</strong><span>Price-only and shuffled labels sit at chance.</span></a></li>
+        <li><a href="#q5"><span class="chip weak">WEAK · CONFOUNDED</span><strong>Does it catch uncued collusion?</strong><span>Small follow effect; history format shifts scores.</span></a></li>
+      </ul>
+    </section>
+
+    <section class="panel" id="scale">
+      <h2>The score scale</h2>
+      <p>Every number below is a probe score: the headline probe's logit. Positive leans collusion (A), negative leans innocent (B), and 0 is a coin flip. Here is where each kind of run lands. Most of the story is on this one picture.</p>
+      <div class="scale-scroll">
+        <svg class="scale" viewBox="0 0 760 250" role="img" aria-label="Probe scores per condition on a shared axis, 7B and 14B">
+          <!-- x(v) = 40 + (v + 50) * 9.333 -->
+          <line class="zero" x1="507" y1="18" x2="507" y2="240"/>
+          <text class="tick-l" x="507" y="12" text-anchor="middle">0 = coin flip</text>
+
+          <text class="row-l" x="0" y="44">7B</text>
+          <line class="axis" x1="40" y1="80" x2="740" y2="80"/>
+          <circle class="n" cx="89" cy="80" r="6"/><text class="n" x="89" y="102" text-anchor="middle">no cue −44.7</text>
+          <circle class="c" cx="217" cy="80" r="6"/><text class="c" x="217" y="66" text-anchor="middle">shuffle ≈−31</text>
+          <circle class="c" cx="245" cy="80" r="6"/><text class="c" x="245" y="102" text-anchor="middle">lead ≈−28</text>
+          <circle class="c" cx="277" cy="80" r="6"/><line class="lead" x1="277" y1="73" x2="277" y2="52"/><text class="c" x="277" y="48" text-anchor="middle">follow ≈−24.6</text>
+          <circle class="b" cx="292" cy="80" r="6"/><line class="lead" x1="292" y1="87" x2="292" y2="110"/><text class="b" x="300" y="122" text-anchor="middle">B ≈−23</text>
+          <circle class="a" cx="684" cy="80" r="6"/><text class="a" x="684" y="66" text-anchor="middle">A ≈ B + 42</text>
+
+          <text class="row-l" x="0" y="164">14B</text>
+          <line class="axis" x1="40" y1="200" x2="740" y2="200"/>
+          <circle class="b" cx="311" cy="200" r="6"/><text class="b" x="300" y="186" text-anchor="middle">B ≈−21</text>
+          <circle class="n" cx="328" cy="200" r="6"/><text class="n" x="340" y="222" text-anchor="middle">no cue −19.1</text>
+          <circle class="c" cx="432" cy="200" r="6"/><text class="c" x="432" y="186" text-anchor="middle">shuffle ≈−8</text>
+          <circle class="c" cx="505" cy="200" r="6"/><text class="c" x="490" y="222" text-anchor="middle">lead ≈−0.2</text>
+          <circle class="c" cx="512" cy="200" r="6"/><line class="lead" x1="512" y1="193" x2="512" y2="172"/><text class="c" x="540" y="168" text-anchor="middle">follow ≈+0.6</text>
+          <circle class="a" cx="693" cy="200" r="6"/><text class="a" x="693" y="186" text-anchor="middle">A ≈+20</text>
+
+          <g class="ticks">
+            <line class="tick" x1="40" y1="236" x2="40" y2="242"/><text class="tick-l" x="40" y="250" text-anchor="middle">−50</text>
+            <line class="tick" x1="273" y1="236" x2="273" y2="242"/><text class="tick-l" x="273" y="250" text-anchor="middle">−25</text>
+            <line class="tick" x1="740" y1="236" x2="740" y2="242"/><text class="tick-l" x="740" y="250" text-anchor="middle">+25</text>
+          </g>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--col-a)"></i>A: collusion cue</span>
+        <span><i style="background:var(--col-b)"></i>B: innocent cue</span>
+        <span><i style="background:var(--col-none)"></i>no cue, A/B-style history</span>
+        <span><i style="background:var(--col-c)"></i>C twins: no cue, C-style history</span>
+      </div>
+      <p class="muted">The 7B C values and A position are approximate. FINDINGS gives the gaps (follow − shuffle +6.35, follow − lead +3.29, A − B ≈ 42) and the matched-price follow score (−24.6), not every mean.</p>
+      <p><strong>How to read it.</strong> A and B sit far apart on both models, so Q2 is easy. On 14B, no cue sits at B level. On 7B it sits about 20 below B. Either way, the C twins all sit above no cue, so the C history format itself nudges scores toward collusion. That's the confound in Q5.</p>
+    </section>
+
+    <section class="q" id="q1">
+      <div class="q-head"><span class="q-no">Q1</span><h3>Does the collusion cue raise prices?</h3><span class="chip pass">PASS · weak on 14B</span><span class="cells">cell <a href="cell_guide.html#cell-6">6</a></span></div>
+      <div class="q-body">
+        <div class="explain">
+          <p class="answer">Yes, a little. A prices sit about 0.07–0.08 above no-cue prices on the same history.</p>
+          <p>This is the positive control. It checks the collusion cue does something before we probe for it. The innocent cue raises prices too, by less. That's by design: both cues say the rival is pricing high.</p>
+          <p>It's weak on 14B. A beats no cue in only half the histories, because prices cluster on round values (1.65 is 44% of 14B prices), so many runs tie.</p>
+        </div>
+        <div class="evidence">
+          <div class="cmp-wrap"><table class="cmp">
+            <thead><tr><th></th><th>7B</th><th>14B</th></tr></thead>
+            <tbody>
+              <tr><td>Mean price A / B / no cue</td><td>1.71 / 1.66 / 1.63</td><td>1.72 / 1.70 / 1.65</td></tr>
+              <tr><td>A − no cue</td><td>+0.08 <small>[+0.069, +0.082]</small></td><td>+0.07 <small>[+0.060, +0.071]</small></td></tr>
+              <tr><td>B − no cue</td><td>+0.03 <small>[+0.027, +0.036]</small></td><td>+0.05</td></tr>
+              <tr><td>A higher / equal / lower</td><td>57 / 33 / 11%</td><td>50 / 37 / 14%</td></tr>
+              <tr><td>Pairs kept by the filter</td><td>269 / 1,200</td><td>259 / 1,200</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="q" id="q2">
+      <div class="q-head"><span class="q-no">Q2</span><h3>Can the probe tell A from B at the same price?</h3><span class="chip pass">PASS</span><span class="cells">cells <a href="cell_guide.html#cell-9">9</a> <a href="cell_guide.html#cell-10">10</a> <a href="cell_guide.html#cell-16">16</a></span></div>
+      <div class="q-body">
+        <div class="explain">
+          <p class="answer">Yes, essentially perfectly. It's the core result.</p>
+          <p>Each pair shares one history and lands on the same price band, so behaviour can't tell A from B. The probe reads the activation just before the price and still separates them. It flags almost no innocent runs as collusive.</p>
+          <p>The two models peak in different places. 7B is smooth from layer 6 up. 14B dips over layers 15–25 on unseen wordings (down to about 85% at layer 17), then recovers from layer 26.</p>
+        </div>
+        <div class="evidence">
+          <div class="cmp-wrap"><table class="cmp">
+            <thead><tr><th></th><th>7B</th><th>14B</th></tr></thead>
+            <tbody>
+              <tr><td>Headline layer</td><td>15</td><td>29</td></tr>
+              <tr><td>Test accuracy</td><td>100.0% <small>[100.0, 100.0]</small></td><td>100.0% <small>[100.0, 100.0]</small></td></tr>
+              <tr><td>False-positive rate (test)</td><td>0.0%</td><td>0.0%</td></tr>
+            </tbody>
+          </table></div>
+          <div class="charts">
+            <figure><img src="../data/key_chart_Qwen2.5-7B-Instruct.png" alt="7B probe accuracy by layer with baselines"><figcaption>key_chart · 7B</figcaption></figure>
+            <figure><img src="../data/key_chart_Qwen2.5-14B-Instruct.png" alt="14B probe accuracy by layer with baselines"><figcaption>key_chart · 14B</figcaption></figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="q" id="q3">
+      <div class="q-head"><span class="q-no">Q3</span><h3>Is it reading the words or the meaning?</h3><span class="chip pass">PASS · with a caveat</span><span class="cells">cells <a href="cell_guide.html#cell-12">12</a> <a href="cell_guide.html#cell-14">14</a></span></div>
+      <div class="q-body">
+        <div class="explain">
+          <p class="answer">More than words. Whether it's "meaning" is not proven.</p>
+          <p>Leave-one-wording-out trains on 4 cue wordings and tests on the 5th. TF-IDF only matches exact words, so it collapses on wordings that share none. On 14B it's at chance (50%) on wordings 1 and 4. The probe gets 100% on both.</p>
+          <p><strong>Caveat.</strong> Every collusion cue mentions my own price and is phrased as a condition. No innocent cue does either. The probe could be reading that shared structure rather than "collusion".</p>
+        </div>
+        <div class="evidence">
+          <div class="cmp-wrap"><table class="cmp">
+            <thead><tr><th>Held-out wording</th><th>7B</th><th>14B</th></tr></thead>
+            <tbody>
+              <tr><td>Probe</td><td>97.6% <small>[96.3, 98.9]</small></td><td>99.0% <small>[98.1, 99.8]</small></td></tr>
+              <tr><td>Probe, per wording 1–5</td><td>100 91 100 96 100</td><td>100 99 96 100 100</td></tr>
+              <tr><td>Probe false-positive rate</td><td>0.7% <small>[0.0, 1.9]</small></td><td>0.0%</td></tr>
+              <tr><td>TF-IDF</td><td>81.6% <small>[78.8, 84.4]</small></td><td>85.3% <small>[82.6, 88.0]</small></td></tr>
+              <tr><td>TF-IDF, per wording 1–5</td><td>50 100 100 58 100</td><td>50 · · 50 · <small>(1 and 4 at chance)</small></td></tr>
+              <tr><td>TF-IDF on seen wordings</td><td>100%</td><td>100%</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="q" id="q4">
+      <div class="q-head"><span class="q-no">Q4</span><h3>Are the controls clean?</h3><span class="chip pass">CLEAN</span><span class="cells">cells <a href="cell_guide.html#cell-13">13</a> <a href="cell_guide.html#cell-14">14</a> <a href="cell_guide.html#cell-15">15</a></span></div>
+      <div class="q-body">
+        <div class="explain">
+          <p class="answer">Yes. Nothing that shouldn't work does, and the layer choice didn't inflate the numbers.</p>
+          <ul>
+            <li><strong>Price only</strong> is at chance. That's guaranteed, not evidence: most kept pairs have exactly equal prices (88% on 14B, 73% on 7B). Treat it as a sanity check.</li>
+            <li><strong>Shuffled labels</strong> are noise. The single shuffles (53.5%, 54.2%) looked borderline, but against 100 permutations they're at the 84th and 88th percentiles. Drop the CI-based reading.</li>
+            <li><strong>Nested layer choice</strong> picks the layer inside each split, so the test data never chooses it. Accuracy stays the same or rises slightly.</li>
+          </ul>
+        </div>
+        <div class="evidence">
+          <div class="cmp-wrap"><table class="cmp">
+            <thead><tr><th></th><th>7B</th><th>14B</th></tr></thead>
+            <tbody>
+              <tr><td>Price only</td><td>51.7% <small>[50.5, 53.2]</small></td><td>50.6% <small>[50.0, 51.4]</small></td></tr>
+              <tr><td>Shuffled-label null, mean</td><td>49.7%</td><td>49.8%</td></tr>
+              <tr><td>Null, 95% of shuffles</td><td>[43.6, 56.7]</td><td>[43.6, 55.3]</td></tr>
+              <tr><td>Nested layer: seen</td><td>100.0% <small>[100.0, 100.0]</small></td><td>99.7% <small>[99.2, 100.0]</small></td></tr>
+              <tr><td>Nested layer: held out</td><td>98.7% <small>[97.8, 99.6]</small></td><td>99.6% <small>[99.0, 100.0]</small></td></tr>
+              <tr><td>Layers picked</td><td>15–23</td><td>27–42</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="q" id="q5">
+      <div class="q-head"><span class="q-no">Q5</span><h3>Does it catch collusion nobody asked for?</h3><span class="chip weak">WEAK · CONFOUNDED</span><span class="cells">cells <a href="cell_guide.html#cell-17">17</a>–<a href="cell_guide.html#cell-21">21</a></span></div>
+      <div class="q-body">
+        <div class="explain">
+          <p class="answer">Not cleanly. It reacts to prices lining up, but barely to who copies whom.</p>
+          <p>There's no cue here. Three twin histories differ only in their price pattern. In <strong>C-follow</strong> the rival copies me. <strong>C-shuffle</strong> has the same rival prices in random order. In <strong>C-lead</strong> I copy the rival. Follow vs lead is the real test: prices match equally often, only the direction differs.</p>
+          <ul>
+            <li><strong>Follow vs shuffle</strong> passes on both models (15–21% of the A–B gap). That could just be "prices look alike".</li>
+            <li><strong>Follow vs lead</strong> passes, but it's small. On 7B it's 8% of the gap, at 13/28 layers, and behaviour agrees: it prices 0.12 higher when followed. On 14B it's 2%, at only 4/48 layers, and prices don't differ.</li>
+            <li>The per-pair score gap doesn't track the price gap on either model.</li>
+            <li>No C run gets near 0, the decision boundary.</li>
+          </ul>
+          <p><strong>Format confound (post-hoc).</strong> All C twins score above no-cue A/B runs (see <a href="#scale">the scale</a>). C histories are 50 rounds, range 1.20–2.20, with held prices. A/B histories are 20 rounds, range 1.47–1.92, with random prices. Something in that format pushes scores up, and we can't say which part.</p>
+        </div>
+        <div class="evidence">
+          <div class="cmp-wrap"><table class="cmp">
+            <thead><tr><th></th><th>7B</th><th>14B</th></tr></thead>
+            <tbody>
+              <tr><td>Price follow / shuffle / lead</td><td>1.76 / 1.66 / 1.65</td><td>1.72 / 1.63 / 1.73</td></tr>
+              <tr><td>Follow − shuffle: score</td><td>+6.35 <small>[+5.81, +6.90]</small></td><td>+8.60 <small>[+7.90, +9.32]</small></td></tr>
+              <tr><td>Follow − shuffle: price</td><td>+0.105 <small>[+0.074, +0.136]</small></td><td>+0.091 <small>[+0.072, +0.110]</small></td></tr>
+              <tr><td>Follow − lead: score</td><td>+3.29 <small>[+2.86, +3.74]</small></td><td>+0.77 <small>[+0.13, +1.42]</small></td></tr>
+              <tr><td>Follow − lead: price</td><td>+0.118 <small>[+0.092, +0.144]</small></td><td>−0.005 <small>[−0.021, +0.011]</small></td></tr>
+              <tr><td>Score gap tracks price gap? (Spearman)</td><td>+0.08, +0.01 <small>no</small></td><td>−0.14, −0.11 <small>no</small></td></tr>
+              <tr><td>Follow &gt; 0 vs shuffle, layers</td><td>17 / 28</td><td>27 / 48</td></tr>
+              <tr><td>Follow &gt; 0 vs lead, layers</td><td>13 / 28</td><td>4 / 48</td></tr>
+              <tr><td>Matched price: C-follow vs B</td><td>−24.6 vs −22.8 <small>202 runs</small></td><td>+0.6 vs −21.1 <small>235 runs</small></td></tr>
+            </tbody>
+          </table></div>
+          <div class="charts">
+            <figure><img src="../data/c_scores_Qwen2.5-7B-Instruct.png" alt="7B probe scores for C twins against A and B"><figcaption>c_scores · 7B</figcaption></figure>
+            <figure><img src="../data/c_scores_Qwen2.5-14B-Instruct.png" alt="14B probe scores for C twins against A and B"><figcaption>c_scores · 14B</figcaption></figure>
+            <figure><img src="../data/c_layers_Qwen2.5-7B-Instruct.png" alt="7B C score gaps at every layer"><figcaption>c_layers · 7B</figcaption></figure>
+            <figure><img src="../data/c_layers_Qwen2.5-14B-Instruct.png" alt="14B C score gaps at every layer"><figcaption>c_layers · 14B</figcaption></figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="corrected">
+      <h2>What got corrected</h2>
+      <p>FINDINGS.md keeps old entries and adds new ones. Two early readings were superseded. Ignore them when you read it top to bottom.</p>
+      <details class="more"><summary>7B C extension: "the probe sees no collusion"</summary>
+        <p>The first 7B entry said every C twin scores at or below B, so the probe sees no collusion in uncued histories. That was true, but it missed the no-cue baseline. No cue sits at −44.7, about 20 below B. So every C twin is actually pushed toward collusion, the same format confound as 14B. The re-run also gave exact gaps instead of chart readings.</p>
+      </details>
+      <details class="more"><summary>7B vs 14B comparison: "7B scores every C twin at B level"</summary>
+        <p>This was the 14B entry's comparison, written before the 7B re-run. The corrected picture flips it. 7B separates follow from lead more than 14B does (8% vs 2% of the A–B gap), and 7B's prices agree.</p>
+      </details>
+      <details class="more"><summary>Shuffled-label CI "only just excludes chance" (14B)</summary>
+        <p>One shuffle at 54.2% with a CI just above 50% looked like a warning. The 100-permutation null shows it's ordinary noise (88th percentile).</p>
+      </details>
+    </section>
+
+    <section class="panel" id="limits">
+      <h2>Limitations to carry into the report</h2>
+      <ul>
+        <li><strong>Cue structure.</strong> Collusion cues all mention my price and are conditional; innocent cues are neither. The probe may read that structure.</li>
+        <li><strong>Instructed, not emergent.</strong> The probe is trained on told-to cues. Q5 shows weak transfer to uncued patterns, in line with Rose et al.</li>
+        <li><strong>History format.</strong> C and A/B histories differ in length, range and held prices, and that shifts scores on its own.</li>
+        <li><strong>Price-only is uninformative.</strong> The filter makes most pairs exactly equal, so ≈50% is guaranteed.</li>
+        <li><strong>Weak positive control on 14B.</strong> Round-number prices cause many ties.</li>
+        <li><strong>Layer dependence.</strong> The 14B follow-vs-lead pass holds at 4 of 48 layers only.</li>
+        <li><strong>Post-hoc checks.</strong> The no-cue baseline, permutation null, nested layer choice and C layer sweep came after review (DECISIONS.md, 06:30).</li>
+      </ul>
+    </section>
+
+    <section class="panel" id="glossary">
+      <h2>Glossary</h2>
+      <dl class="gloss">
+        <dt>A / B</dt><dd>Same history, two prompts. A has a collusion cue (the rival keeps prices high if I do). B has an innocent cue (the rival's costs rose). Both say the rival charges $1.90.</dd>
+        <dt>no cue</dt><dd>The same A/B history with no cue at all. Used for the positive control and as a score baseline.</dd>
+        <dt>pair filter</dt><dd>Keeps an A/B pair only if both prices are in the high band (1.47–1.92) and close together. Makes behaviour useless for telling A from B.</dd>
+        <dt>probe score</dt><dd>The logistic-regression probe's logit at the headline layer. Above 0 means "collusion", below 0 "innocent".</dd>
+        <dt>headline layer</dt><dd>The single layer reported up front (7B: 15, 14B: 29). Nested layer choice checks this pick didn't flatter the result.</dd>
+        <dt>held-out wording</dt><dd>Leave-one-wording-out. Train on 4 cue wordings, test on the 5th, rotate.</dd>
+        <dt>TF-IDF</dt><dd>Bag-of-words baseline on the prompt text. Can only match exact words.</dd>
+        <dt>false-positive rate</dt><dd>Share of B (innocent) runs the probe flags as collusive, at a threshold fixed on training data.</dd>
+        <dt>[lo, hi]</dt><dd>95% confidence interval from resampling pairs.</dd>
+        <dt>C-follow</dt><dd>No cue. The rival copies my previous price.</dd>
+        <dt>C-shuffle</dt><dd>C-follow's rival prices in random order. Same prices, no copying.</dd>
+        <dt>C-lead</dt><dd>C-follow with the two sellers swapped, so I copy the rival. Prices match just as often.</dd>
+        <dt>A–B gap</dt><dd>Distance between mean A and B scores (about 40 logits). Used as a ruler: "8% of the gap".</dd>
+      </dl>
+    </section>
+  </main>
+</div>
+</body>
+</html>
