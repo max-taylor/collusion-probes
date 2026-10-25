@@ -23,6 +23,14 @@ def get_mean_ci(values: np.ndarray, confidence: float = 0.95) -> tuple[float, fl
     return mean, mean - half_width, mean + half_width
 
 
+def get_bootstrap_ci(values: list[float] | np.ndarray, n_resamples: int, seed: int) -> tuple[float, float]:
+    """95% percentile bootstrap CI of the mean, resampling values (one per pair) with replacement."""
+    rng = np.random.default_rng(seed)
+    boot_means = rng.choice(values, size=(n_resamples, len(values))).mean(axis=1)
+    low, high = np.percentile(boot_means, [2.5, 97.5])
+    return float(low), float(high)
+
+
 def make_text_baseline() -> Pipeline:
     """TF-IDF on the prompt text, then logistic regression: matches exact words only, not meaning."""
     return make_pipeline(TfidfVectorizer(), LogisticRegression(max_iter=MAX_ITER))

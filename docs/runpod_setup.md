@@ -6,7 +6,7 @@ Model work runs on a RunPod GPU pod. Neovim and molten stay on the Mac and conne
 
 | Item | Value |
 |---|---|
-| Pod | `ai-collusion-sprint` (`cbq9enm8fe41pd`), Secure Cloud, EU-RO-1 |
+| Pod | `ai-collusion-sprint-2` (`bhms915dvcztr5`), Secure Cloud, EU-RO-1. Replaced `cbq9enm8fe41pd` on 2026-10-25, when its host had no free GPU. |
 | GPU | 1× RTX PRO 4500 Blackwell (32 GB), $0.72/hr while running |
 | Image | `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404` (template `runpod-torch-v280`) |
 | CUDA floor | 13.0, because the locked torch uses the CUDA 13 runtime |
@@ -51,7 +51,7 @@ Rerunning `start_jupyter.sh` restarts the server, which kills any running kernel
 `data/` is gitignored and written on the pod. Pull it to the Mac with:
 
 ```bash
-rsync -rltz pod:/workspace/collusion-probes/data/ ./data/
+rsync -rltz pod:/workspace/ai_collusion_sprint/data/ ./data/
 ```
 
 File names include the model name, so 7B results don't overwrite local 1.5B ones.
