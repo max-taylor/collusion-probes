@@ -40,9 +40,10 @@ Outputs go to `data/` (gitignored, about 4.3 GB for all models):
 | `acts_<model>.npz`, `acts_C_<model>.npz` | Activations at every layer |
 | `probes_<model>.pkl` | One saved probe per layer, plus the headline layer |
 | `lowo_curve_<model>.npz` | Held-out-wording accuracy at every layer, for the model comparison chart |
-| `key_chart_<model>.png`, `c_scores_<model>.png`, `c_layers_<model>.png`, `model_comparison.png` | Report figures |
+| `c_groups_<model>.npz` | Probe scores for A, B, no-cue and the C twins, for the C comparison chart |
+| `key_chart_<model>.png`, `c_scores_<model>.png`, `c_layers_<model>.png`, `model_comparison.png`, `c_scores_comparison.png` | Report figures |
 
-The data aren't released; the logged seeds regenerate them.
+The runs, activations, probes and C scores for all three models are on Hugging Face: [`maxtaylordev/collusion-probes`](https://huggingface.co/datasets/maxtaylordev/collusion-probes). Download them into `data/` to skip generation (`hf download maxtaylordev/collusion-probes --repo-type dataset --local-dir data`). The logged seeds also regenerate them.
 
 ## Key concepts
 

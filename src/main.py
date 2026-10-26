@@ -456,6 +456,24 @@ _ = plt.ylabel(f"probe logit, layer {c_layer}")
 plt.tight_layout()
 plt.savefig(DATA_DIR / f"c_scores_{MODEL_NAME}.png", dpi=200)
 plt.show()
+np.savez(DATA_DIR / f"c_groups_{MODEL_NAME}.npz", labels=list(groups), layer=c_layer, **{f"group_{g}": np.asarray(v) for g, v in enumerate(groups.values())})
+
+
+# %% C scores across models (post-hoc): one panel per model with a saved c_groups file, each on its own logit scale
+_, axes = plt.subplots(1, len(COMPARE_MODELS), figsize=(9, 2.6))
+for ax, name in zip(axes, COMPARE_MODELS):
+    saved_groups = np.load(DATA_DIR / f"c_groups_{name}.npz")
+    labels = [str(label).replace(" (oos)", "") for label in saved_groups["labels"]]
+    _ = ax.boxplot([saved_groups[f"group_{g}"] for g in range(len(labels))], tick_labels=labels, flierprops={"markersize": 2})
+    _ = ax.axhline(0, color="grey", linestyle=":", linewidth=0.8)
+    _ = ax.set_title(f"{name.removesuffix('-Instruct')}, layer {int(saved_groups['layer'])}", fontsize=8)
+    _ = ax.tick_params(axis="x", labelsize=6, labelrotation=45)
+    _ = ax.tick_params(axis="y", labelsize=7)
+_ = axes[0].set_ylabel("probe logit")
+plt.tight_layout()
+plt.savefig(DATA_DIR / "c_scores_comparison.png", dpi=200)
+plt.show()
+
 
 # %% C score gaps at every layer (post-hoc, DECISIONS.md), as a share of that layer's A minus B gap so layers compare
 c_index = {(run.pair_id, run.condition): i for i, run in enumerate(c_runs)}

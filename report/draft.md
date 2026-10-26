@@ -143,9 +143,9 @@ Both runs were pre-registered before any of their output existed, and only the m
 
 ### 4.4 Transfer to uncued collusion is weak
 
-![Probe scores for A, B, no-cue and the C twins, Qwen2.5-14B](figures/c_scores_Qwen2.5-14B-Instruct.png)
+![Probe scores for A, B, no-cue and the C twins, all three models](figures/c_scores_comparison.png)
 
-**Figure 2.** Headline-layer probe logits on Qwen2.5-14B for held-out A and B runs, no-cue runs, and the three C twins. Positive leans collusive.
+**Figure 2.** Probe logits at each model's pre-registered fixed layer, for out-of-sample A and B runs, no-cue runs and the three C twins (300 sets). Positive leans collusive; the dotted line is the flag threshold. Each panel has its own scale. Follow and lead sit close together on every model, and on Llama every C twin sits above A.
 
 | Score gap (logits), share of A−B gap | 7B | 14B | Llama-8B |
 |---|---|---|---|
@@ -157,7 +157,7 @@ Both runs were pre-registered before any of their output existed, and only the m
 Both pre-registered tests pass on all three models, so the reciprocity claim technically holds. But the effect sizes give little evidence that the probe responds to reciprocity.
 
 - **Being copied versus copying.** On 14B, C-lead (I copy the rival) scores almost as high as C-follow (the rival copies me): 0.8 logits, on a scale where A and B are about 40 apart. This is consistent with sensitivity to aligned-price or history features rather than to who follows whom. On 7B the gap is larger, and the model also prices higher when followed (+$0.12), so a weak reciprocity signal shows up in both behaviour and the probe.
-- **Llama flags every uncued run.** All three Llama twins, C-shuffle included, score above the held-out A runs (Figure C7). At its pre-registered threshold, the Llama probe flags 100% of uncued histories. On both Qwen models, no C run comes near the boundary.
+- **Llama flags every uncued run.** All three Llama twins, C-shuffle included, score above the held-out A runs (Figure 2). At its pre-registered threshold, the Llama probe flags 100% of uncued histories. On both Qwen models, no C run comes near the boundary.
 
 **History format shifts scores (post-hoc).** No-cue A/B runs, which never trained the probe, score below every C twin on all three models. C histories differ from A/B ones in length, price range and structure, and that difference moves the probe. So only comparisons within a C twin set are valid.
 
@@ -194,7 +194,7 @@ A linear probe on an LLM seller's activations separates these instructed collusi
 ## Code and data
 
 - **Code:** https://github.com/max-taylor/matched-outcome-probing. All cells are in `src/main.py`, with helpers in `src/collusion_probes/`. The README covers setup and reproduction. Pre-registered decisions and change log: `DECISIONS.md`. Results log: `FINDINGS.md`.
-- **Data:** not released. The runs, activations and probes total 4.2 GB. `src/main.py` regenerates them from the logged seeds, as `data/runs_<model>.jsonl` (prompts, completions, prices), `data/acts_<model>.npz` (activations), `data/probes_<model>.pkl` (saved probes), with `_C_` in the name for the C runs.
+- **Data:** https://huggingface.co/datasets/maxtaylordev/collusion-probes (4.5 GB). `src/main.py` also regenerates them from the logged seeds, as `data/runs_<model>.jsonl` (prompts, completions, prices), `data/acts_<model>.npz` (activations), `data/probes_<model>.pkl` (saved probes), with `_C_` in the name for the C runs.
 - **Prior work:** no code predates the sprint (`PRIOR_WORK.md`). The prompt and market follow Fish et al. (2024) and Romero, Sauer and Peist (2025).
 
 ## References
@@ -249,6 +249,7 @@ Every cue states the rival price as $1.90.
 | 25 Oct 06:00, 07:35 | Llama-3.1-8B replication pre-registered, paused for licence approval, reinstated before any Llama output. |
 | 26 Oct | Report switched its main held-out estimate to the nested layer choice, because the pre-registered layer rule saw test data. No data or test changes. |
 | 26 Oct | Post-hoc: held-out-wording accuracy at every layer for all three models (Figure 1), recomputed on CPU from cached activations. Llama layer 14 reaches 99.4%. No data or test changes. |
+| 26 Oct | Post-hoc: C scores for all three models in one figure (Figure 2), re-scored on CPU from the saved probes and cached activations. Every logged mean and gap reproduces. No data or test changes. |
 
 ## Appendix C. Additional figures
 
@@ -264,25 +265,17 @@ Every cue states the rival price as $1.90.
 
 **Figure C3.** As Figure C1, for Llama-3.1-8B (headline layer 9).
 
-![Probe scores, Qwen2.5-7B](figures/c_scores_Qwen2.5-7B-Instruct.png)
-
-**Figure C4.** As Figure 2, for Qwen2.5-7B (headline layer 15).
-
 ![C score gaps by layer, Qwen2.5-7B](figures/c_layers_Qwen2.5-7B-Instruct.png)
 
-**Figure C5.** C score gaps at every layer on 7B, as a share of that layer's A − B gap. Purple: follow − shuffle. Brown: follow − lead.
+**Figure C4.** C score gaps at every layer on 7B, as a share of that layer's A − B gap. Purple: follow − shuffle. Brown: follow − lead.
 
 ![C score gaps by layer, Qwen2.5-14B](figures/c_layers_Qwen2.5-14B-Instruct.png)
 
-**Figure C6.** As Figure C5, for 14B.
-
-![Probe scores, Llama-3.1-8B](figures/c_scores_Llama-3.1-8B-Instruct.png)
-
-**Figure C7.** As Figure 2, for Llama-3.1-8B (headline layer 9). Every C twin scores above the held-out A runs.
+**Figure C5.** As Figure C4, for 14B.
 
 ![C score gaps by layer, Llama-3.1-8B](figures/c_layers_Llama-3.1-8B-Instruct.png)
 
-**Figure C8.** As Figure C5, for Llama-3.1-8B.
+**Figure C6.** As Figure C4, for Llama-3.1-8B.
 
 ## Appendix D. Reproduction map
 
@@ -298,8 +291,9 @@ All cells are in `src/main.py`. Set `MODEL_ID` in the Config cell, then run the 
 | TF-IDF, price only, shuffled labels | "Baselines on the same splits" and "Shuffled-label null distribution" |
 | Figures C1–C3 | "Key chart" |
 | Figure 1 | "Model comparison chart (post-hoc)", after the Key chart cell has run for all three models |
-| Tables 2 and F1, Figures 2, C4, C7 | "Extension 1" cells |
-| Figures C5, C6, C8 | "C score gaps at every layer" |
+| Tables 2 and F1 | "Extension 1" cells |
+| Figure 2 | "C scores across models (post-hoc)", after "Extension 1 results" has run for all three models |
+| Figures C4, C5, C6 | "C score gaps at every layer" |
 
 ## Appendix E. Example runs
 
