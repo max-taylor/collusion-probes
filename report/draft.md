@@ -116,9 +116,9 @@ The pre-registered pass rule (CI above 0) holds on both Qwen models. The effect 
 
 ### 4.2 The probe separates the cues at matched prices
 
-![Probe accuracy by layer, Qwen2.5-7B](figures/key_chart_Qwen2.5-7B-Instruct.png)
+![Held-out-wording probe accuracy by relative depth, all three models](figures/model_comparison.png)
 
-**Figure 1.** Probe accuracy by layer on Qwen2.5-7B. Blue: probe on seen wordings. Green: probe on held-out wordings, with bootstrap band. Orange: TF-IDF on held-out wordings. Red dotted: price only. The vertical line marks the pre-registered fixed headline layer (15).
+**Figure 1.** Held-out-wording probe accuracy at every layer, for all three models, by relative depth (layer ÷ number of layers: 28, 48 and 32). Shaded: 95% pair-bootstrap band. Dots: the pre-registered fixed layers (15, 29, 9). Dashed: TF-IDF on held-out wordings, in each model's colour. Seen-wording accuracy is near 100% from layer 1 on every model (Figures C1–C3). Post-hoc.
 
 | Held-out wording | 7B | 14B | Llama-8B* |
 |---|---|---|---|
@@ -129,7 +129,7 @@ The pre-registered pass rule (CI above 0) holds on both Qwen models. The effect 
 
 **Table 1.** Main results with 95% pair-bootstrap CIs. Nested (post-hoc, the main estimate): each fold picks its own layer from its own training data. The pre-registered fixed layer gives 97.6%, 99.0% and 89.5%. Seen-wording accuracy, the shuffled-label null and per-wording results are in Appendix G. *Llama is exploratory: its positive control failed (§4.1).
 
-The probe is near-perfect on seen wordings from layer 1 onwards, so seen-wording accuracy alone proves little. Held-out wordings are the real test. On 7B, held-out accuracy passes TF-IDF from about layer 3, and stays at 94–99% from layer 6 up.
+The probe is near-perfect on seen wordings from layer 1 onwards, so seen-wording accuracy alone proves little. Held-out wordings are the real test. On 7B, held-out accuracy passes TF-IDF from layer 4, and stays at 94–99% from layer 6 up.
 
 **Per wording**, the gap is sharper. On wordings 1 and 4, TF-IDF is 50–58% on all three models, while the Qwen probes are 96–100% (Table G2). Word overlap gives no help there, and the probe still generalises. On Llama the probe gets 65% on wording 4.
 
@@ -137,9 +137,9 @@ The probe is near-perfect on seen wordings from layer 1 onwards, so seen-wording
 
 ### 4.3 Replication on 14B and Llama-3.1-8B
 
-Both runs were pre-registered before any of their output existed, and only the model changed (Appendix B). On 14B the main result replicates (Table 1), but the layer profile differs (Figure C1). Held-out accuracy dips to about 85% at layer 17, level with TF-IDF, and recovers to about 99% from layer 26. So on 14B the signal that generalises across these held-out cue wordings sits in later layers than on 7B.
+Both runs were pre-registered before any of their output existed, and only the model changed (Appendix B). On 14B the main result replicates (Table 1), but the layer profile differs (Figure 1). Held-out accuracy dips to about 85% at layer 17, level with TF-IDF, and recovers to about 99% from layer 26. So on 14B the signal that generalises across these held-out cue wordings sits in later layers than on 7B.
 
-**Llama-3.1-8B (exploratory).** The probe still beats TF-IDF on held-out wordings, but less cleanly than on Qwen (Figure C2), with a 14% false-positive rate. The nested folds score level with the fixed layer, so the weaker result isn't an artefact of the layer rule.
+**Llama-3.1-8B (exploratory).** The probe still beats TF-IDF on held-out wordings, but less cleanly than on Qwen, with a 14% false-positive rate. Some layers do far better: layer 14 reaches 99.4% (Figure 1). I picked that layer after seeing test results, so it is not an estimate. Choosing the layer from training data alone doesn't find it reliably: the fold that holds out wording 2 picks layer 11, where wording 2 scores 59%. So the nested estimate stays at 89.3%, level with the fixed layer. On Llama a layer that generalises exists, but picking it without test data is unreliable.
 
 ### 4.4 Transfer to uncued collusion is weak
 
@@ -157,7 +157,7 @@ Both runs were pre-registered before any of their output existed, and only the m
 Both pre-registered tests pass on all three models, so the reciprocity claim technically holds. But the effect sizes give little evidence that the probe responds to reciprocity.
 
 - **Being copied versus copying.** On 14B, C-lead (I copy the rival) scores almost as high as C-follow (the rival copies me): 0.8 logits, on a scale where A and B are about 40 apart. This is consistent with sensitivity to aligned-price or history features rather than to who follows whom. On 7B the gap is larger, and the model also prices higher when followed (+$0.12), so a weak reciprocity signal shows up in both behaviour and the probe.
-- **Llama flags every uncued run.** All three Llama twins, C-shuffle included, score above the held-out A runs (Figure C6). At its pre-registered threshold, the Llama probe flags 100% of uncued histories. On both Qwen models, no C run comes near the boundary.
+- **Llama flags every uncued run.** All three Llama twins, C-shuffle included, score above the held-out A runs (Figure C7). At its pre-registered threshold, the Llama probe flags 100% of uncued histories. On both Qwen models, no C run comes near the boundary.
 
 **History format shifts scores (post-hoc).** No-cue A/B runs, which never trained the probe, score below every C twin on all three models. C histories differ from A/B ones in length, price range and structure, and that difference moves the probe. So only comparisons within a C twin set are valid.
 
@@ -194,7 +194,7 @@ A linear probe on an LLM seller's activations separates these instructed collusi
 ## Code and data
 
 - **Code:** https://github.com/max-taylor/matched-outcome-probing. All cells are in `src/main.py`, with helpers in `src/collusion_probes/`. The README covers setup and reproduction. Pre-registered decisions and change log: `DECISIONS.md`. Results log: `FINDINGS.md`.
-- **Data:** not released. The runs, activations and probes total 4.3 GB. `src/main.py` regenerates them from the logged seeds, as `data/runs_<model>.jsonl` (prompts, completions, prices), `data/acts_<model>.npz` (activations), `data/probes_<model>.pkl` (saved probes), with `_C_` in the name for the C runs.
+- **Data:** not released. The runs, activations and probes total 4.2 GB. `src/main.py` regenerates them from the logged seeds, as `data/runs_<model>.jsonl` (prompts, completions, prices), `data/acts_<model>.npz` (activations), `data/probes_<model>.pkl` (saved probes), with `_C_` in the name for the C runs.
 - **Prior work:** no code predates the sprint (`PRIOR_WORK.md`). The prompt and market follow Fish et al. (2024) and Romero, Sauer and Peist (2025).
 
 ## References
@@ -230,7 +230,7 @@ Every cue states the rival price as $1.90.
 
 **Method details.**
 
-- *Layer choice.* The pre-registered headline layer has the best 5-fold CV accuracy averaged over the five training splits; ties go to the middle tied layer. This leaks test data: test pairs of one split sit in the training split of another, and the held-out wording helps choose the layer it is tested at. The nested estimate fixes this. Each split picks its own layer by CV on its own training data, and each held-out-wording fold picks its layer by leave-one-wording-out CV over its four training wordings. Nested layers chosen: 15–23 (7B), 27–42 (14B), 11–16 (Llama).
+- *Layer choice.* The pre-registered headline layer has the best 5-fold CV accuracy averaged over the five training splits; ties go to the middle tied layer. This leaks test data: test pairs of one split sit in the training split of another, and the held-out wording helps choose the layer it is tested at. The nested estimate fixes this. Each split picks its own layer by CV on its own training data, and each held-out-wording fold picks its layer by leave-one-wording-out CV over its four training wordings. Layers chosen by the held-out-wording folds: 15–23 (7B), 27–42 (14B), 11–16 (Llama).
 - *Why not a sentence-embedding baseline.* A sentence embedding encodes meaning, so if it matched the probe on held-out wordings, that would say nothing against the probe. TF-IDF is the baseline the probe has to beat to show it isn't just matching words.
 - *C generation and tests.* 300 twin sets per model, 50 rounds, prices in $1.20–$2.20, with my price held for 3–6 rounds in C-follow. Each run is scored with the saved fixed-layer probe, as a logit, because the probabilities saturate. Each test passes if the 95% pair-bootstrap CI of the mean twin score gap is entirely above 0, and I claim reciprocity only if both pass. Three C pilots (excluded) led to this design (Appendix B).
 
@@ -248,36 +248,41 @@ Every cue states the rival price as $1.90.
 | 25 Oct 05:45, 06:30 | Post-hoc: no-cue scoring; nested layer choice, 100-permutation null, per-layer C gaps. |
 | 25 Oct 06:00, 07:35 | Llama-3.1-8B replication pre-registered, paused for licence approval, reinstated before any Llama output. |
 | 26 Oct | Report switched its main held-out estimate to the nested layer choice, because the pre-registered layer rule saw test data. No data or test changes. |
+| 26 Oct | Post-hoc: held-out-wording accuracy at every layer for all three models (Figure 1), recomputed on CPU from cached activations. Llama layer 14 reaches 99.4%. No data or test changes. |
 
 ## Appendix C. Additional figures
 
+![Probe accuracy by layer, Qwen2.5-7B](figures/key_chart_Qwen2.5-7B-Instruct.png)
+
+**Figure C1.** Probe accuracy by layer on Qwen2.5-7B. Blue: probe on seen wordings. Green: probe on held-out wordings, with bootstrap band. Orange: TF-IDF on held-out wordings. Red dotted: price only. The vertical line marks the pre-registered fixed headline layer (15).
+
 ![Probe accuracy by layer, Qwen2.5-14B](figures/key_chart_Qwen2.5-14B-Instruct.png)
 
-**Figure C1.** As Figure 1, for Qwen2.5-14B (headline layer 29).
+**Figure C2.** As Figure C1, for Qwen2.5-14B (headline layer 29).
 
 ![Probe accuracy by layer, Llama-3.1-8B](figures/key_chart_Llama-3.1-8B-Instruct.png)
 
-**Figure C2.** As Figure 1, for Llama-3.1-8B (headline layer 9).
+**Figure C3.** As Figure C1, for Llama-3.1-8B (headline layer 9).
 
 ![Probe scores, Qwen2.5-7B](figures/c_scores_Qwen2.5-7B-Instruct.png)
 
-**Figure C3.** As Figure 2, for Qwen2.5-7B (headline layer 15).
+**Figure C4.** As Figure 2, for Qwen2.5-7B (headline layer 15).
 
 ![C score gaps by layer, Qwen2.5-7B](figures/c_layers_Qwen2.5-7B-Instruct.png)
 
-**Figure C4.** C score gaps at every layer on 7B, as a share of that layer's A − B gap. Purple: follow − shuffle. Brown: follow − lead.
+**Figure C5.** C score gaps at every layer on 7B, as a share of that layer's A − B gap. Purple: follow − shuffle. Brown: follow − lead.
 
 ![C score gaps by layer, Qwen2.5-14B](figures/c_layers_Qwen2.5-14B-Instruct.png)
 
-**Figure C5.** As Figure C4, for 14B.
+**Figure C6.** As Figure C5, for 14B.
 
 ![Probe scores, Llama-3.1-8B](figures/c_scores_Llama-3.1-8B-Instruct.png)
 
-**Figure C6.** As Figure 2, for Llama-3.1-8B (headline layer 9). Every C twin scores above the held-out A runs.
+**Figure C7.** As Figure 2, for Llama-3.1-8B (headline layer 9). Every C twin scores above the held-out A runs.
 
 ![C score gaps by layer, Llama-3.1-8B](figures/c_layers_Llama-3.1-8B-Instruct.png)
 
-**Figure C7.** As Figure C4, for Llama-3.1-8B.
+**Figure C8.** As Figure C5, for Llama-3.1-8B.
 
 ## Appendix D. Reproduction map
 
@@ -291,9 +296,10 @@ All cells are in `src/main.py`. Set `MODEL_ID` in the Config cell, then run the 
 | Tables 1, G1, G2 (held-out wording, per wording) | "Leave-one-wording-out" |
 | Nested layer choice | "Nested layer choice (post-hoc)" |
 | TF-IDF, price only, shuffled labels | "Baselines on the same splits" and "Shuffled-label null distribution" |
-| Figures 1, C1, C2 | "Key chart" |
-| Tables 2 and F1, Figures 2, C3, C6 | "Extension 1" cells |
-| Figures C4, C5, C7 | "C score gaps at every layer" |
+| Figures C1–C3 | "Key chart" |
+| Figure 1 | "Model comparison chart (post-hoc)", after the Key chart cell has run for all three models |
+| Tables 2 and F1, Figures 2, C4, C7 | "Extension 1" cells |
+| Figures C5, C6, C8 | "C score gaps at every layer" |
 
 ## Appendix E. Example runs
 
@@ -484,7 +490,7 @@ In C-follow the rival copies my previous price one round later. C-shuffle keeps 
 |---|---|---|---|
 | Probe, seen wordings, nested layer | 100.0% [100.0, 100.0] | 99.7% [99.2, 100.0] | 100.0% [100.0, 100.0] |
 | Probe, held-out wording, nested layer | 98.7% [97.8, 99.6] | 99.6% [99.0, 100.0] | 89.3% [87.3, 91.2] |
-| Nested layers chosen | 15–23 | 27–42 | 11–16 |
+| Nested layers chosen, held-out wording | 15–23 | 27–42 | 11–16 |
 | Probe, seen wordings, fixed layer (pre-registered) | 100.0% [100.0, 100.0] | 100.0% [100.0, 100.0] | 100.0% [100.0, 100.0] |
 | Probe, held-out wording, fixed layer (pre-registered) | 97.6% [96.3, 98.9] | 99.0% [98.1, 99.8] | 89.5% [87.6, 91.4] |
 | Fixed headline layer | 15 | 29 | 9 |
@@ -514,4 +520,4 @@ In C-follow the rival copies my previous price one round later. C-shuffle keeps 
 
 ## LLM Usage Statement
 
-I set the research direction and made the decisions. Claude Code (Claude Opus 5.5) did the implementation. It wrote the code for generation and analysis, proposed controls (including the C-lead twin and the TF-IDF baseline), drafted the `DECISIONS.md` entries, managed the GPU setup and drafted the report. It also recomputed the 14B per-wording TF-IDF cells from the logged runs. OpenAI Codex reviewed the methods, results and drafts, which led to the post-hoc checks (25 Oct, 06:30). I chose the research question, steered the design, ran every experiment and analysis cell, and wrote the title, abstract and conclusion. All results come from real runs of the named models. I checked every number against the logged outputs.
+I set the research direction and made the decisions. Claude Code (Claude Opus 5.5) did the implementation. It wrote the code for generation and analysis, proposed controls (including the C-lead twin and the TF-IDF baseline), drafted the `DECISIONS.md` entries, managed the GPU setup and drafted the report. It also recomputed the 14B per-wording TF-IDF cells from the logged runs. OpenAI Codex reviewed the methods, results and drafts, which led to the post-hoc checks (25 Oct, 06:30). I chose the research question, steered the design, ran every experiment and analysis cell, and wrote the title, abstract and conclusion. All results come from real runs of the named models. Claude checked every number against the logged outputs with a script and by hand; I spot-checked the headline figures.

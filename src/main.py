@@ -328,6 +328,27 @@ _ = plt.legend(fontsize=7, loc="lower right")
 plt.tight_layout()
 plt.savefig(DATA_DIR / f"key_chart_{MODEL_NAME}.png", dpi=200)
 plt.show()
+np.savez(DATA_DIR / f"lowo_curve_{MODEL_NAME}.npz", lowo_ci=lowo_ci, text_lowo=text_lowo_ci[0], headline_layer=headline_layer)
+
+
+# %% Model comparison chart (post-hoc): held-out-wording accuracy by relative depth, for every model with a saved curve
+COMPARE_MODELS = {"Qwen2.5-7B-Instruct": "tab:blue", "Qwen2.5-14B-Instruct": "tab:purple", "Llama-3.1-8B-Instruct": "tab:orange"}
+_ = plt.figure(figsize=(6, 2.8))
+for name, color in COMPARE_MODELS.items():
+    curve = np.load(DATA_DIR / f"lowo_curve_{name}.npz")
+    ci, headline = curve["lowo_ci"], int(curve["headline_layer"])
+    depth = np.arange(len(ci)) / (len(ci) - 1)
+    _ = plt.plot(depth, ci[:, 0], color=color, label=name.removesuffix("-Instruct"))
+    _ = plt.fill_between(depth, ci[:, 1], ci[:, 2], alpha=0.15, color=color)
+    _ = plt.plot(depth[headline], ci[headline, 0], "o", color=color, markersize=4)
+    _ = plt.axhline(float(curve["text_lowo"]), color=color, linestyle="--", linewidth=0.8)
+_ = plt.axhline(0.5, color="grey", linestyle=":", label="chance")
+_ = plt.xlabel("relative depth (0 = embeddings, 1 = last layer)")
+_ = plt.ylabel("held-out-wording accuracy")
+_ = plt.legend(fontsize=7, loc="lower right")
+plt.tight_layout()
+plt.savefig(DATA_DIR / "model_comparison.png", dpi=200)
+plt.show()
 
 # %% Extension 1 config: uncued collusion, C-follow vs C-shuffle and C-lead twins (pre-registered in DECISIONS.md)
 C_PILOT = False  # 10-pair pilot (seed 3, excluded); set False for the 300 pre-registered pairs (seed 2)

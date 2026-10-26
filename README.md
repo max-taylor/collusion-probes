@@ -39,7 +39,8 @@ Outputs go to `data/` (gitignored, about 4.3 GB for all models):
 | `runs_<model>.jsonl`, `runs_C_<model>.jsonl` | Prompts, completions and prices for A/B/no-cue and C runs |
 | `acts_<model>.npz`, `acts_C_<model>.npz` | Activations at every layer |
 | `probes_<model>.pkl` | One saved probe per layer, plus the headline layer |
-| `key_chart_<model>.png`, `c_scores_<model>.png`, `c_layers_<model>.png` | Report figures |
+| `lowo_curve_<model>.npz` | Held-out-wording accuracy at every layer, for the model comparison chart |
+| `key_chart_<model>.png`, `c_scores_<model>.png`, `c_layers_<model>.png`, `model_comparison.png` | Report figures |
 
 The data aren't released; the logged seeds regenerate them.
 
