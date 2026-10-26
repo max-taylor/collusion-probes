@@ -4,6 +4,8 @@ Model work runs on a RunPod GPU pod. Neovim and molten stay on the Mac and conne
 
 ## This project's resources
 
+All pods and the network volume were deleted on 2026-10-26, after checking every file in `data/` on the volume matched the local copy. The table records what was used.
+
 | Item | Value |
 |---|---|
 | Pod | 7B runs: `ai-collusion-sprint-2` (`bhms915dvcztr5`), 1× RTX PRO 4500 (32 GB), $0.72/hr. 14B replication: `ai-collusion-sprint-14b` (`uxe0a15dpwiehr`), 1× RTX PRO 6000 (96 GB), $2.49/hr, terminated 2026-10-25 after the run. Llama-3.1-8B replication: `ai-collusion-sprint-llama` (`x24qqg97hv9fih`), 1× RTX PRO 4500, $0.72/hr, created 2026-10-25 because the stopped 7B pods' hosts had no free GPU. Both Secure Cloud, EU-RO-1. |
