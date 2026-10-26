@@ -1,6 +1,6 @@
 # Matched-outcome probing
 
-Can a linear probe on an LLM pricing agent's activations tell a collusion cue from an innocent cue when both lead to the same price? Apart Research AI Collusion Research Sprint, October 2026 (Track 1, Q1.3). The report is `report/draft.md`.
+Can a linear probe on an LLM pricing agent's activations tell a collusion cue from an innocent cue when both lead to the same price? Apart Research AI Collusion Research Sprint, October 2026 (Track 1, Q1.3). The report is `report/report.md` (PDF: `report/report.pdf`).
 
 ## Prior work disclosure
 
@@ -56,6 +56,6 @@ The runs, activations, probes and C scores for all three models are on Hugging F
 src/main.py               experiment cells
 src/collusion_probes/     helpers: prompt, market, runs, probe
 docs/                     scope, prompt provenance, pod setup
-report/                   report draft and figures
+report/                   report (Markdown and PDF) and figures
 scripts/start_jupyter.sh  starts Jupyter on the pod
 ```

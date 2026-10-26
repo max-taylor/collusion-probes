@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = ["markdown>=3.7", "playwright>=1.48"]
 # ///
-"""Render report/draft.md to report/draft.pdf in the official template's layout.
+"""Render report/report.md to report/report.pdf in the official template's layout.
 
 Matches report-template.pdf: US Letter, 1-inch margins, Old Standard TT 11pt body, 14pt section headings.
 Run from the repo root: `uv run scripts/render_report.py` (once first: `uvx playwright install chromium`).
@@ -15,8 +15,8 @@ from pathlib import Path
 import markdown
 from playwright.sync_api import sync_playwright
 
-SOURCE = Path("report/draft.md")
-OUTPUT = Path("report/draft.pdf")
+SOURCE = Path("report/report.md")
+OUTPUT = Path("report/report.pdf")
 PAGE_MARGIN = "1in"
 FOOTNOTE = re.compile(r'<div class="first-page-footnote">(.*?)</div>\n?', re.S)
 FONT_LOAD_MS = 3000  # Google Fonts must load before printing, or Chromium falls back to Times
