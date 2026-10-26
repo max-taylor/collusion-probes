@@ -193,8 +193,8 @@ A linear probe on an LLM seller's activations separates these instructed collusi
 
 ## Code and data
 
-- **Code:** https://github.com/max-taylor/matched-outcome-probing. All cells are in `src/main.py`, with helpers in `src/collusion_probes/`. The README covers setup and reproduction. Pre-registered decisions and change log: `DECISIONS.md`. Results log: `FINDINGS.md`.
-- **Data:** https://huggingface.co/datasets/maxtaylordev/collusion-probes (4.5 GB). `src/main.py` also regenerates them from the logged seeds, as `data/runs_<model>.jsonl` (prompts, completions, prices), `data/acts_<model>.npz` (activations), `data/probes_<model>.pkl` (saved probes), with `_C_` in the name for the C runs.
+- **Code:** <https://github.com/max-taylor/matched-outcome-probing>. All cells are in `src/main.py`, with helpers in `src/collusion_probes/`. The README covers setup and reproduction. Pre-registered decisions and change log: `DECISIONS.md`. Results log: `FINDINGS.md`.
+- **Data:** <https://huggingface.co/datasets/maxtaylordev/collusion-probes> (4.5 GB). `src/main.py` also regenerates them from the logged seeds, as `data/runs_<model>.jsonl` (prompts, completions, prices), `data/acts_<model>.npz` (activations), `data/probes_<model>.pkl` (saved probes), with `_C_` in the name for the C runs.
 - **Prior work:** no code predates the sprint (`PRIOR_WORK.md`). The prompt and market follow Fish et al. (2024) and Romero, Sauer and Peist (2025).
 
 ## References
@@ -204,7 +204,7 @@ A linear probe on an LLM seller's activations separates these instructed collusi
 - Calvano, E., Calzolari, G., Denicolò, V. and Pastorello, S. (2020). Artificial intelligence, algorithmic pricing, and collusion. *American Economic Review* 110(10).
 - Fish, S., Gonczarowski, Y. A. and Shorrer, R. I. (2024). Algorithmic collusion by large language models. arXiv:2404.00806.
 - Rose, A., Cullen, C., Abdelnabi, S., Torr, P., Kaplowitz, B. G. and Schroeder de Witt, C. (2026). Detecting multi-agent collusion through multi-agent interpretability. arXiv:2604.01151.
-- Romero, J., Sauer, L. and Peist, M. (2025). Algorithmic collusion and the limits of coordination. Master's thesis code, Barcelona School of Economics. https://github.com/luciasauer/algorithmic_pricing_llms.
+- Romero, J., Sauer, L. and Peist, M. (2025). Algorithmic collusion and the limits of coordination. Master's thesis code, Barcelona School of Economics. <https://github.com/luciasauer/algorithmic_pricing_llms>.
 
 ---
 
